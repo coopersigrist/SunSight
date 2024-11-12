@@ -1,4 +1,5 @@
 from data_load_util import *
+from tqdm import tqdm
 
 
 # Creates a projection of carbon offset if the current ratio of panel locations remain the same 
@@ -79,6 +80,62 @@ def create_random_proj(combined_df, n=1000, metric='carbon_offset_metric_tons_pe
 
     return projection
 
+# Places a panel at a zip code
+def place_panel(new_df, zip, metric):
+
+    zip_mask = new_df['region_name'] == zip
+    new_df['existing_installs_count'] += zip_mask 
+
+    return new_df[zip_mask][metric].values[0]
+
+# Places a single panel using the lexicase strategy, parameters are ordered by lexicase random choice
+def place_panel_lexicase(new_df, demographics, inverses, dfs, thresholds, metric):
+    
+    initial_df = dfs[demographics[0]] # Take DF which is sorted by the chosen primary feature
+    initial_df = initial_df[initial_df['existing_installs_count'] < initial_df['count_qualified'] ] # Removes full (max number of panels reached) zips
+    df = initial_df[abs(initial_df[demographics[0]] - initial_df[demographics[0]][0]) < thresholds[0]] # Remove all zips not within the threshold for that feature
+    for demo, threshold, inverse in zip(demographics[1:], thresholds[1:], inverses[1:]):
+        if len(df) == 1:
+            chosen_zip = df['region_name'][0]
+            return place_panel(new_df, chosen_zip, metric), chosen_zip
+        
+        # Resort and remove zips outside of threhold for following demographics
+        df = df.sort_values(demo, ascending=inverse)
+        df = initial_df[abs(initial_df[demo] - initial_df[demo][0]) <= threshold] 
+
+    chosen_zip = np.random.choice(df['region_name'])
+    return place_panel(new_df, chosen_zip, metric), chosen_zip
+
+# Creates an entire projection based on lexicase choosing strategy over given demographics
+def create_lexicase_proj(combined_df, n=1000, demographics=["black_prop", "carbon_offset_metric_tons_per_panel", "yearly_sunlight_kwh_kw_threshold_avg"], inverses=[False, False, False], thresholds=[0,0,0], metric="carbon_offset_metric_tons_per_panel"):
+    
+    proj = np.zeros(n+1)
+    chosen_zips = np.zeros(n)
+    sorted_dfs = {}
+    new_df = pd.DataFrame.copy(combined_df, deep=True)
+    
+    for demo,inverse,threshold in zip(demographics,inverses, thresholds):
+        sorted_dfs[demo] = new_df.sort_values(demo, ascending=inverse) # Create sorted dfs for each of the demographics to save on compute and space
+        sorted_dfs[demo] = sorted_dfs[demo] [abs(sorted_dfs[demo][demo] - sorted_dfs[demo][demo][0]) <= threshold] # Remove all elements that aren't within the threshold for each demo metric
+    
+    print("Creating Lexicase Projection")
+
+    # Each loop places one panel
+    for i in tqdm(range(n)):
+        # Chooses the random order of the metric testing
+        order = np.arange(0, len(demographics))
+        np.random.shuffle(order)
+        ordered_demos = [demographics[i] for i in order]
+        ordered_thresholds = [thresholds[i] for i in order] 
+        ordered_inverses = [inverses[i] for i in order] 
+
+        # Places a single panel
+        metric_change, chosen_zip = place_panel_lexicase(new_df, demographics=ordered_demos, inverses=ordered_inverses, dfs=sorted_dfs, thresholds=ordered_thresholds, metric=metric)
+        proj[i+1] = proj[i] + metric_change
+        chosen_zips[i] = chosen_zip
+
+    return proj, chosen_zips
+
 # Creates multiple different projections and returns them
 def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_metric_tons_per_panel', save=True):
 
@@ -98,6 +155,8 @@ def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_me
     proj['Racial-Equity-Aware'], picked['Racial-Equity-Aware'] = create_greedy_projection(combined_df, n, sort_by='black_prop', metric=metric)
     print("Creating Greedy Low Median Income Projection")
     proj['Income-Equity-Aware'], picked['Income-Equity-Aware'] = create_greedy_projection(combined_df, n, sort_by='Median_income', ascending=True, metric=metric)
+
+    proj['Lexicase'], picked['Lexicase'] = create_lexicase_proj(combined_df, n, demographics=['carbon_offset_metric_tons_per_panel','yearly_sunlight_kwh_kw_threshold_avg','black_prop', 'Median_income'], inverses=[False,False,False,True], thresholds=[10000,10000,10000,10000], metric=metric)
 
     print("Creating Round Robin Projection")
     proj['Round Robin'], picked['Round Robin'] = create_round_robin_projection(projection_list=
