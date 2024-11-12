@@ -156,7 +156,7 @@ def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_me
     print("Creating Greedy Low Median Income Projection")
     proj['Income-Equity-Aware'], picked['Income-Equity-Aware'] = create_greedy_projection(combined_df, n, sort_by='Median_income', ascending=True, metric=metric)
 
-    proj['Lexicase'], picked['Lexicase'] = create_lexicase_proj(combined_df, n, demographics=['carbon_offset_metric_tons_per_panel','yearly_sunlight_kwh_kw_threshold_avg','black_prop', 'Median_income'], inverses=[False,False,False,True], thresholds=[10000,10000,10000,10000], metric=metric)
+    proj['Lexicase'], _ = create_lexicase_proj(combined_df, n, demographics=['carbon_offset_metric_tons_per_panel','yearly_sunlight_kwh_kw_threshold_avg','black_prop', 'Median_income'], inverses=[False,False,False,True], thresholds=[10000,10000,10000,10000], metric=metric)
 
     print("Creating Round Robin Projection")
     proj['Round Robin'], picked['Round Robin'] = create_round_robin_projection(projection_list=

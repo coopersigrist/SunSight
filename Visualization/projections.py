@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 combined_df = make_dataset(remove_outliers=True)
 max_num_added = 1850000
+max_num_added = 1000
 Energy_projections, Energy_picked = create_projections(combined_df, n=max_num_added, load=True, metric='energy_generation_per_panel')
 Carbon_offset_projections, Carbon_offset_picked = create_projections(combined_df, n=max_num_added, load=True, metric='carbon_offset_kg_per_panel')
 
@@ -47,7 +48,7 @@ def plot_projections(projections, panel_estimations=None, net_zero_horizontal=Fa
     print("percent difference between continued and racially-aware:", projections['Racial-Equity-Aware'].values[-1] / projections['Status-Quo'].values[-1])
     
     for i, elem in enumerate(projections['Round Robin'].values):
-        if elem > two_mill_continued:
+        if net_zero_horizontal and elem > two_mill_continued:
             print("number of panels for net zero round robin:", i)
             print("percentage relative to status-quo:", i/(479000 * 3))
             break
@@ -127,7 +128,10 @@ def plot_demo_state_stats(new_df,save="Clean_Data/data_by_state_proj.csv"):
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop","Median_income", "asian_prop"], key="carbon_offset_kg", xticks=['Black', 'White', 'Asian','Income'] , type=type, stacked=stacked, ylabel="Potential Carbon Offset (x Avg)", title="", hatches=hatches, annotate=annotate, legend=True)
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop", "Median_income", "asian_prop"], xticks=['Black', 'White', 'Asian', 'Income'], key="existing_installs_count_per_capita", type=type, stacked=stacked, ylabel="Existing Installs Per Capita (x Avg)", title="", hatches=hatches, annotate=annotate,  legend=True)
 
-plot_projections(Carbon_offset_projections, panel_estimations_by_year, net_zero_horizontal=True, interval=100000, upper_bound='Carbon-Efficient', ylabel="Carbon Offset (kg)")
+plot_projections(Carbon_offset_projections, interval=100, upper_bound='Carbon-Efficient', ylabel="Carbon Offset (kg)")
+plot_projections(Energy_projections, interval=100, upper_bound='Carbon-Efficient', ylabel="Carbon Offset (kg)")
+
+# plot_projections(Carbon_offset_projections, panel_estimations_by_year, net_zero_horizontal=True, interval=100000, upper_bound='Carbon-Efficient', ylabel="Carbon Offset (kg)")
 # plot_projections(Energy_projections, panel_estimations_by_year, net_zero_horizontal=True, interval=100000, upper_bound='Energy-Efficient', ylabel="Additional Energy Capacity (kWh)")
 
 # print(Energy_picked[''])
