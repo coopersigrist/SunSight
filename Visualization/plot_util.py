@@ -303,7 +303,7 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
 def bar_plot_demo_split(df, demos, key, type="avg value", stacked=False, xticks=None, title=None, ylabel=None, annotate=True, hatches=None, legend=True):
     true_avg = np.mean(df[key].values)
 
-    plt.style.use('seaborn-colorblind')
+    plt.style.use('seaborn-v0_8-colorblind')
 
     font = {'family' : 'DejaVu Sans',
     'weight' : 'bold',

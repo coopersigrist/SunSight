@@ -55,9 +55,11 @@ def create_weighted_proj(combined_df, n=1000, objectives=['carbon_offset_metric_
 
     new_df = combined_df
     new_df['weighted_combo_metric'] = combined_df[objectives[0]] * 0
-
+    norm_df = normalise_df(combined_df,objectives)
     for weight, obj in zip(weights,objectives):
-        new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (combined_df[obj] / np.mean(combined_df[obj])) * weight
+        # new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (combined_df[obj] / np.mean(combined_df[obj])) * weight
+        #lambda x: (x-combined_df[obj].min())/(combined_df[obj].max()-combined_df[obj].min()))
+        new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (norm_df[obj] ) * weight
 
     return create_greedy_projection(combined_df=new_df, n=n, sort_by='weighted_combo_metric', metric=metric)
 
@@ -140,8 +142,8 @@ def create_lexicase_proj(combined_df, n=1000, demographics=["black_prop", "carbo
 def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_metric_tons_per_panel', save=True):
 
     ## TODO remove rrtest (just for a new version of round robin)
-    if load and exists("Clean_Data/projections_"+metric+".csv") and exists("Clean_Data/projections_picked.csv"):
-        return pd.read_csv("Clean_Data/projections_"+metric+".csv"), pd.read_csv("Clean_Data/projections_picked.csv")
+    # if load and exists("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_weighted_"+metric+".csv") and exists("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_weighted_picked.csv"):
+        # return pd.read_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_weighted_"+metric+".csv"), pd.read_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_weighted_picked.csv")
     
     picked = pd.DataFrame()
     proj = pd.DataFrame()
@@ -156,7 +158,7 @@ def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_me
     print("Creating Greedy Low Median Income Projection")
     proj['Income-Equity-Aware'], picked['Income-Equity-Aware'] = create_greedy_projection(combined_df, n, sort_by='Median_income', ascending=True, metric=metric)
 
-    proj['Lexicase'], _ = create_lexicase_proj(combined_df, n, demographics=['carbon_offset_metric_tons_per_panel','yearly_sunlight_kwh_kw_threshold_avg','black_prop', 'Median_income'], inverses=[False,False,False,True], thresholds=[10000,10000,10000,10000], metric=metric)
+    # proj['Lexicase'], _ = create_lexicase_proj(combined_df, n, demographics=['carbon_offset_metric_tons_per_panel','yearly_sunlight_kwh_kw_threshold_avg','black_prop', 'Median_income'], inverses=[False,False,False,True], thresholds=[10000,10000,10000,10000], metric=metric)
 
     print("Creating Round Robin Projection")
     proj['Round Robin'], picked['Round Robin'] = create_round_robin_projection(projection_list=
@@ -164,8 +166,8 @@ def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_me
                                                                                                    picked_list=
                                                                                                    [picked['Carbon-Efficient'], picked['Energy-Efficient'], picked['Racial-Equity-Aware'], picked['Income-Equity-Aware']])
 
-    # print("Creating Weighted Greedy Projection")
-    # proj['Weighted Greedy'], picked['Weighted Greedy'] = create_weighted_proj(combined_df, n, ['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop'], [2,4,1], metric=metric)
+    print("Creating Weighted Greedy Projection")
+    proj['Weighted Greedy'], picked['Weighted Greedy'] = create_weighted_proj(combined_df, n, ['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop'], [0.4,1.6,1.6,1.2000000000000002], metric=metric)
 
     # uniform_samples = 10
 
@@ -176,30 +178,55 @@ def create_projections(combined_df, n=1000, load=False, metric='carbon_offset_me
     #     proj['Uniform Random (' + str(uniform_samples) + ' samples)' ] += create_random_proj(combined_df, n)/uniform_samples
     
     ## TODO remove rrtest (just for a new version of round robin)
-    if save:
-        proj.to_csv("Clean_Data/projections_"+metric+".csv",index=False)
-        picked.to_csv("Clean_Data/projections_picked.csv", index=False)
+    # if save:
+    #     proj.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_"+metric+".csv",index=False)
+    #     picked.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/projections_picked.csv", index=False)
 
     return proj, picked
 
 # Searches over many different weight settings, with the first weight being set permenantly to 1 and the other two being set proportionally
 # Returns a 2d array of projections (i.e. 3d array)
+
+# def create_many_weighted(combined_df, n=1000, objectives=['carbon_offset_metric_tons_per_panel'], weight_starts=[], weight_ends=[], number_of_samples=1, metric='carbon_offset_metric_tons_per_panel', save=None, load=None):
+
+#     if exists(load):
+#        return np.load(load)
+
+#     all_projections = np.zeros((number_of_samples,number_of_samples,n+1))
+
+#     for i, weight1 in enumerate(np.arange(weight_starts[0], weight_ends[0], (weight_ends[0] - weight_starts[0]) / number_of_samples)):
+#         for j, weight2 in enumerate(np.arange(weight_starts[1], weight_ends[1], (weight_ends[1] - weight_starts[1]) / number_of_samples)):
+
+#             print("weighted proj number:", (i*number_of_samples + j))
+            
+#             all_projections[i][j],_ = create_weighted_proj(combined_df, n=n, objectives=objectives, weights=[1, weight1, weight2], metric=metric)
+#             print(all_projections[i][j])
+#     print("all proj")
+#     print(all_projections)
+#     if save is not None:
+#         np.save(save, all_projections)
+
+#     return all_projections
 def create_many_weighted(combined_df, n=1000, objectives=['carbon_offset_metric_tons_per_panel'], weight_starts=[], weight_ends=[], number_of_samples=1, metric='carbon_offset_metric_tons_per_panel', save=None, load=None):
 
-    if exists(load):
-       return np.load(load)
+    # if load is not None:
+    #     if exists(load):
+    #         return np.load(load)
 
-    all_projections = np.zeros((number_of_samples,number_of_samples,n+1))
-
+    all_projections = {}
+    #carbon offset, energy generation, black prop, median income
     for i, weight1 in enumerate(np.arange(weight_starts[0], weight_ends[0], (weight_ends[0] - weight_starts[0]) / number_of_samples)):
         for j, weight2 in enumerate(np.arange(weight_starts[1], weight_ends[1], (weight_ends[1] - weight_starts[1]) / number_of_samples)):
-
-            print("weighted proj number:", (i*number_of_samples + j))
+            for k, weight3 in enumerate(np.arange(weight_starts[2], weight_ends[2], (weight_ends[2] - weight_starts[2]) / number_of_samples)):
+                for l, weight4 in enumerate(np.arange(weight_starts[3], weight_ends[3], (weight_ends[3] - weight_starts[3]) / number_of_samples)):
             
-            all_projections[i][j],_ = create_weighted_proj(combined_df, n=n, objectives=objectives, weights=[1, weight1, weight2], metric=metric)
-    
-
+                    print("weighted proj number:", (i*number_of_samples + j))
+                    valuekey,_ = create_weighted_proj(combined_df, n=n, objectives=objectives, weights=[weight1, weight2, weight3, weight4], metric=metric)
+                    key =str(valuekey[-1])
+                    
+                    all_projections[key] = [weight1,weight2,weight3,weight4]
+            
     if save is not None:
         np.save(save, all_projections)
-
+    print(all_projections)
     return all_projections

@@ -20,7 +20,7 @@ def combine_counts(solar_size_json):
     return counts
 
 # Loads Solar data for given zipcodes, also cleans and calculates new values
-def load_solar_dat(zip_codes, load_dir="Clean_Data/solar_zip_usable.csv"):
+def load_solar_dat(zip_codes, load_dir="/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/solar_zip_usable.csv"):
 
     # If we have already cleaned data then we load that instead of processing
     if load_dir is not None and exists(load_dir):
@@ -28,7 +28,7 @@ def load_solar_dat(zip_codes, load_dir="Clean_Data/solar_zip_usable.csv"):
 
     zip_codes = list(map(int, zip_codes))
     # df = pd.read_csv('solar_zip_usable.csv')
-    df = pd.read_csv('../Data/solar_by_zip.csv')
+    df = pd.read_csv('Data/solar_by_zip.csv')
     df = df[df["region_name"].isin(zip_codes)]
     df = df.drop_duplicates(subset=['region_name'], keep='first')
     df = df[['region_name','state_name','yearly_sunlight_kwh_kw_threshold_avg','existing_installs_count','percent_covered','carbon_offset_metric_tons','count_qualified','number_of_panels_total','install_size_kw_buckets_json']]
@@ -47,7 +47,7 @@ def load_solar_dat(zip_codes, load_dir="Clean_Data/solar_zip_usable.csv"):
     # This metric for solar potential is somewhat arbitrary, it is simply the avg amount of solar energy produced if all possibe solar panels were built
     df['solar_potential'] = df['square_footage'] * df['yearly_sunlight_kwh_kw_threshold_avg']
     
-    df.to_csv("Clean_Data/solar_zip_usable.csv", index=False)
+    df.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/solar_zip_usable.csv", index=False)
 
     return df
 
@@ -97,14 +97,14 @@ def stats_for_states(df, key):
     return stats
 
 # Loads Cenus data for given zipcodes, also cleans and calculates new values
-def load_census_dat(zip_codes, load_dir="Clean_Data/census_zip_usable.csv"):
+def load_census_dat(zip_codes, load_dir="/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/census_zip_usable.csv"):
 
     # If we have already cleaned data then we load that instead of processing
     if load_dir is not None and exists(load_dir):
         return pd.read_csv(load_dir)
 
     zip_codes = list(map(int, zip_codes))
-    df = pd.read_csv('../Data/census_by_zip.csv')
+    df = pd.read_csv('Data/census_by_zip.csv')
     df = df[df["zcta"].isin(zip_codes)]
 
     # Removes bad data, should be already removed from the zip.csv, but this to be certain.
@@ -114,17 +114,17 @@ def load_census_dat(zip_codes, load_dir="Clean_Data/census_zip_usable.csv"):
     # Also removes duplicates (which happen for some reason even when there are no duplicates in zips)
     df = df.drop_duplicates(subset=['zcta'], keep='first')
     df = df.sort_values('zcta')
-    df.to_csv("Clean_Data/census_zip_usable.csv", index=False)
+    df.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/census_zip_usable.csv", index=False)
 
     return df
 
 def load_state_energy_dat(keys= ['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Total Generation'], load=True, total=True):
 
-    if exists("Clean_Data/state_energy_usable.csv") and load:
-        df = pd.read_csv('Clean_Data/state_energy_usable.csv') 
+    if exists("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/state_energy_usable.csv") and load:
+        df = pd.read_csv('/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/state_energy_usable.csv') 
         return df
     
-    df = pd.read_csv('../Data/energy_stats_by_state.csv') 
+    df = pd.read_csv('Data/energy_stats_by_state.csv') 
     solar_data = df[['State', 'State code', 'Variable', 'Value', 'Category']]
 
     # Mask out Puerto Rico (not enough other data)
@@ -169,17 +169,17 @@ def load_state_energy_dat(keys= ['Clean', 'Bioenergy', 'Coal','Gas','Fossil','So
     for key in keys:
         new_df[key+'_prop'] = new_df[key] / new_df['Total Generation']
 
-    new_df.to_csv("Clean_Data/state_energy_usable.csv", index=False)
+    new_df.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/state_energy_usable.csv", index=False)
 
     return new_df
 
 def load_election_data(load=True):
 
     if load:
-        df = pd.read_csv("Clean_Data/election_by_state.csv")
+        df = pd.read_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/election_by_state.csv")
         return df 
 
-    df = pd.read_csv('../Data/election_by_state.csv') 
+    df = pd.read_csv('Data/election_by_state.csv') 
 
     df = df[df['year'] == 2020]
     demo_df = df[df['party_simplified'] == "DEMOCRAT"]
@@ -194,11 +194,11 @@ def load_election_data(load=True):
     new_df["Democrat_prop"] = new_df['Democrat']/ new_df['Total']
     new_df["Republican_prop"] = new_df['Republican']/ new_df['Total']
 
-    new_df.to_csv("Clean_Data/election_by_state.csv", index=False)
+    new_df.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/election_by_state.csv", index=False)
 
     return new_df
 
-def load_state_data(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Wind','Other Renewables','Other Fossil','Total Generation'], stats_keys=["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line","black_population","white_population","asian_population","native_population", "black_prop","white_prop", "asian_prop","yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", "realized_potential_percent", 'carbon_offset_kg_per_panel','carbon_offset_kg'], load="Clean_Data/data_by_state.csv", save="Clean_Data/data_by_state.csv"):
+def load_state_data(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Wind','Other Renewables','Other Fossil','Total Generation'], stats_keys=["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line","black_population","white_population","asian_population","native_population", "black_prop","white_prop", "asian_prop","yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", "realized_potential_percent", 'carbon_offset_kg_per_panel','carbon_offset_kg'], load="/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/data_by_state.csv", save="/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/data_by_state.csv"):
     
     if load is not None and exists(load):
         return pd.read_csv(load)
@@ -220,12 +220,12 @@ def load_state_data(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil'
     return combined_state_df
 
 def get_clean_zips():
-    if exists("Clean_Data/zips_usable.csv"):
-        zips = pd.read_csv('Clean_Data/zips_usable.csv',dtype=str) 
+    if exists("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/zips_usable.csv"):
+        zips = pd.read_csv('/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/zips_usable.csv',dtype=str) 
         zips = zips.drop_duplicates(subset=['zcta'], keep='first')
         return zips['zcta'].values
     else:
-        zips = pd.read_csv('../Data/zips.csv',dtype=str) 
+        zips = pd.read_csv('Data/zips.csv',dtype=str) 
         zips = zips.drop_duplicates(subset=['zcta'], keep='first')
         zip_codes = zips['zcta'].values
         solar_df = load_solar_dat(zip_codes)
@@ -237,7 +237,7 @@ def get_clean_zips():
         z_temp2 = z_temp[z_temp['zcta'].isin(census_df['zcta'].astype(str).str.zfill(5))]
 
         # Save this new zip list
-        z_temp2.to_csv("Clean_Data/zips_usable.csv", index=False)
+        z_temp2.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/zips_usable.csv", index=False)
 
         return z_temp2['zcta'].values
 # Loads both the census and solar data across all zips and returns both dfs, it is necessary to have already created the solar_by_zip and census_by_zip data under the Data folder though
@@ -259,7 +259,7 @@ def load_data():
 
     solar_df['solar_potential_per_capita'] = solar_df['solar_potential'] / census_df['Total_Population']
     solar_df = solar_df.sort_values('region_name')
-    solar_df.to_csv("Clean_Data/solar_zip_usable.csv", index=False)
+    solar_df.to_csv("/Users/mimilertsaroj/Desktop/SunSight/Visualization/Clean_Data/solar_zip_usable.csv", index=False)
 
     nomi = pgeocode.Nominatim('us')
 
@@ -329,3 +329,13 @@ def make_dataset(remove_outliers=True):
     # combined_df['zips'] = zip_codes
 
     return combined_df.reset_index(drop=True)
+
+def normalise_df(combined_df,objectives):
+    # print(combined_df[metric])
+    norm_df = combined_df.copy()
+    for ob in objectives:
+        max = norm_df[ob].max()
+        min = norm_df[ob].min()
+        norm_df[ob] = norm_df[ob].apply(lambda x: (x-min)/(max-min))
+    return norm_df
+
