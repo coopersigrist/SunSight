@@ -10,48 +10,43 @@ Carbon_offset_projections, Carbon_offset_picked = create_projections(combined_df
 
 panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
  
-''' TODO REFACTOR '''
-def plot_projections(projections, panel_estimations=None, net_zero_horizontal=False, interval=1, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], upper_bound='Greedy Carbon Offset', ylabel=None):
+''' TODO TEST '''
+def plot_projections(projections:Projections, panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
 
+    # Some default sizing and styling
     plt.style.use("seaborn")
     font = {'family' : 'DejaVu Sans',
     'weight' : 'bold',
     'size'   : fontsize}
-
     matplotlib.rc('font', **font)
 
-    if net_zero_horizontal:
+    # Adds a horizontal line at the point where Status-Quo is expected to be when net-zero carbon emissions (479000 * 3 panels) is reached.
+    if net_zero_horizontal and 'Status-Quo' in projections:
         two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
 
-    keys = projections.keys()
-    x = np.arange((len(projections[keys[0]]) // interval) + 1) * interval
+    # Gets the names of all the objectives
+    keys = projections.objective_projections.keys()
 
-    if panel_estimations is not None:
-        for label, value in panel_estimations:
-            plt.vlines(value, np.array(projections[upper_bound])[-1]/18, np.array(projections[upper_bound])[-1], colors='darkgray' , linestyles='dashed', linewidth=2, alpha=0.7)
-            plt.text(value - len(projections[upper_bound])/23, np.array(projections[upper_bound])[-1]/80, label, alpha=0.7, fontsize=25)
-
-    if net_zero_horizontal:
-        plt.hlines(two_mill_continued, 0, len(projections[upper_bound]), colors='black' , linestyles='dashed', linewidth=2, alpha=0.5)
-        plt.text(0, two_mill_continued*1.1, "Continued trend at\nNet-zero prediction", alpha=0.95, fontsize=18, color='black')
-
-    for key,fmt in zip(keys,fmts):
-        plt.plot(x, np.array(projections[key])[0::interval], fmt, label=key, linewidth=3, markersize=8, alpha=0.9)
-
+    ax = plt.subplot()
+    projections.add_all_proj_to_plot(ax, fontsize=fontsize, fmts=fmts, **kwargs)
 
     plt.locator_params(axis='x', nbins=8) 
     plt.locator_params(axis='y', nbins=8) 
     plt.yticks(fontsize=fontsize/(1.2))
     plt.xticks(fontsize=fontsize/(1.2))
 
-    print("percent difference between continued and Carbon-efficient:", projections['Round Robin'].values[-1] / projections['Carbon-Efficient'].values[-1] )
-    print("percent difference between continued and racially-aware:", projections['Racial-Equity-Aware'].values[-1] / projections['Status-Quo'].values[-1])
+    # get ranges of the plots axes
+    xmin, xmax, ymin, ymax = plt.axis()
+
+    ''' TODO test'''
+    if panel_estimations is not None:
+        for label, value in panel_estimations:
+            plt.vlines(value, ymin+ymax/18, ymax, colors='darkgray' , linestyles='dashed', linewidth=2, alpha=0.7)
+            plt.text(value - (xmax-xmin)/23, ymin + ymax/80, label, alpha=0.7, fontsize=25)
     
-    for i, elem in enumerate(projections['Round Robin'].values):
-        if elem > two_mill_continued:
-            print("number of panels for net zero round robin:", i)
-            print("percentage relative to status-quo:", i/(479000 * 3))
-            break
+    if net_zero_horizontal:
+        plt.hlines(two_mill_continued, 0, xmax, colors='black' , linestyles='dashed', linewidth=2, alpha=0.5)
+        plt.text(0, two_mill_continued*1.1, "Continued trend at\nNet-zero prediction", alpha=0.95, fontsize=18, color='black')
 
     
 
@@ -100,17 +95,6 @@ def plot_demo_state_stats(new_df,save="Clean_Data/data_by_state_proj.csv"):
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop","Median_income", "asian_prop"], key="panel_utilization", xticks=['Black', 'White', 'Asian','Income'] , type=type, stacked=stacked, ylabel="Realized Potential (x Avg)", title="", hatches=hatches, annotate=annotate, legend=True) 
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop","Median_income", "asian_prop"], key="carbon_offset_kg", xticks=['Black', 'White', 'Asian','Income'] , type=type, stacked=stacked, ylabel="Potential Carbon Offset (x Avg)", title="", hatches=hatches, annotate=annotate, legend=True)
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop", "Median_income", "asian_prop"], xticks=['Black', 'White', 'Asian', 'Income'], key="existing_installs_count_per_capita", type=type, stacked=stacked, ylabel="Existing Installs Per Capita (x Avg)", title="", hatches=hatches, annotate=annotate,  legend=True)
-
-''' TODO REFACTOR '''
-plot_projections(Carbon_offset_projections, panel_estimations_by_year, net_zero_horizontal=True, interval=100000, upper_bound='Carbon-Efficient', ylabel="Carbon Offset (kg)")
-# plot_projections(Energy_projections, panel_estimations_by_year, net_zero_horizontal=True, interval=100000, upper_bound='Energy-Efficient', ylabel="Additional Energy Capacity (kWh)")
-
-# print(Energy_picked[''])
-
-# for key in ['Energy-Efficient', 'Carbon-Efficient', 'Racial-Equity-Aware', 'Income-Equity-Aware', 'Round Robin']:
-#     plot_picked(combined_df, Energy_picked[key], None, title="")
-
-quit()
 
 def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', objectives=['carbon_offset_kg_per_panel', 'energy_generation_per_panel', 'black_prop']):
     weight_starts = [0.0, 0.0]
