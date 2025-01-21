@@ -19,8 +19,8 @@ def plot_projections(projections:list[Projection], objective:str="Carbon Offset"
         two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
 
     ax = plt.subplot()
-    for projection in projections:
-        projection.add_proj_to_plot(ax=ax, objective=objective, fontsize=fontsize, fmts=fmts, **kwargs)
+    for projection, marker in zip(projections, fmts):
+        projection.add_proj_to_plot(ax=ax, objective=objective, **kwargs)
 
     plt.locator_params(axis='x', nbins=8) 
     plt.locator_params(axis='y', nbins=8) 
@@ -73,7 +73,6 @@ def plot_picked(combined_df, picked, metric, title=""):
 
     geo_plot(combined_df['times_picked'][combined_df['times_picked']>0], color_scale='agsunset', title=title, edf=combined_df[combined_df['times_picked']>0], zipcodes=picked.unique(), colorbar_label="", size=dot_size_scale)
 
-
 def plot_demo_state_stats(new_df,save="Clean_Data/data_by_state_proj.csv"):
     state_df = load_state_data(new_df, load=None, save=save)
 
@@ -109,8 +108,8 @@ def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', obje
 
 if __name__ == '__main__':
     combined_df = make_dataset(remove_outliers=True)
-    max_num_added = 1850000
-    projection_list = create_projections(combined_df, n_panels=max_num_added)
+    max_num_added = 2000000
+    projection_list = create_projections(combined_df, n_panels=max_num_added, save='Projection_Data/2mill_No_lex.pkl', load='Projection_Data/2mill_No_lex.pkl')
     panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
 
     plot_projections(projections=projection_list, panel_estimations=panel_estimations_by_year)
