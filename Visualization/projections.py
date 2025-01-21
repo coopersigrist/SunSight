@@ -3,15 +3,9 @@ from data_load_util import *
 from projections_util import *
 from tqdm import tqdm
 
-combined_df = make_dataset(remove_outliers=True)
-max_num_added = 1850000
-Energy_projections, Energy_picked = create_projections(combined_df, n=max_num_added, load=True, metric='energy_generation_per_panel')
-Carbon_offset_projections, Carbon_offset_picked = create_projections(combined_df, n=max_num_added, load=True, metric='carbon_offset_kg_per_panel')
-
-panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
  
 ''' TODO TEST '''
-def plot_projections(projections:Projections, panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
+def plot_projections(projections:list[Projection], objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
 
     # Some default sizing and styling
     plt.style.use("seaborn")
@@ -24,11 +18,9 @@ def plot_projections(projections:Projections, panel_estimations=None, net_zero_h
     if net_zero_horizontal and 'Status-Quo' in projections:
         two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
 
-    # Gets the names of all the objectives
-    keys = projections.objective_projections.keys()
-
     ax = plt.subplot()
-    projections.add_all_proj_to_plot(ax, fontsize=fontsize, fmts=fmts, **kwargs)
+    for projection in projections:
+        projection.add_proj_to_plot(ax=ax, objective=objective, fontsize=fontsize, fmts=fmts, **kwargs)
 
     plt.locator_params(axis='x', nbins=8) 
     plt.locator_params(axis='y', nbins=8) 
@@ -51,7 +43,11 @@ def plot_projections(projections:Projections, panel_estimations=None, net_zero_h
     
 
     plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
-    plt.ylabel(ylabel, fontsize=fontsize, labelpad=20)
+    if ylabel is None:
+        plt.ylabel(objective, fontsize=fontsize, labelpad=20)
+    else:
+        plt.ylabel(ylabel, fontsize=fontsize, labelpad=20)
+
     plt.legend(fontsize=fontsize/1.5)
     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
     #       ncol=1, shadow=True, fontsize=fontsize/1.4)
@@ -96,6 +92,7 @@ def plot_demo_state_stats(new_df,save="Clean_Data/data_by_state_proj.csv"):
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop","Median_income", "asian_prop"], key="carbon_offset_kg", xticks=['Black', 'White', 'Asian','Income'] , type=type, stacked=stacked, ylabel="Potential Carbon Offset (x Avg)", title="", hatches=hatches, annotate=annotate, legend=True)
     bar_plot_demo_split(new_df, demos=["black_prop", "white_prop", "Median_income", "asian_prop"], xticks=['Black', 'White', 'Asian', 'Income'], key="existing_installs_count_per_capita", type=type, stacked=stacked, ylabel="Existing Installs Per Capita (x Avg)", title="", hatches=hatches, annotate=annotate,  legend=True)
 
+'''TODO REFACTOR (low prio)'''
 def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', objectives=['carbon_offset_kg_per_panel', 'energy_generation_per_panel', 'black_prop']):
     weight_starts = [0.0, 0.0]
     weight_ends = [0.5,1.5]
@@ -108,3 +105,12 @@ def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', obje
     ax.set_xlabel("Energy Potential Weight")
     ax.set_ylabel("Black Prop Weight")
     plt.show()
+
+
+if __name__ == '__main__':
+    combined_df = make_dataset(remove_outliers=True)
+    max_num_added = 1850000
+    projection_list = create_projections(combined_df, n_panels=max_num_added)
+    panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
+
+    plot_projections(projections=projection_list, panel_estimations=panel_estimations_by_year)
