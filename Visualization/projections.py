@@ -80,34 +80,6 @@ def plot_picked(combined_df, picked, metric, title=""):
 
     geo_plot(combined_df['times_picked'][combined_df['times_picked']>0], color_scale='agsunset', title=title, edf=combined_df[combined_df['times_picked']>0], zipcodes=picked.unique(), colorbar_label="", size=dot_size_scale)
 
-# Creates a DF with updated values of existing installs, carbon offset potential(along with per panel), and realized potential
-# After a set of picks (zip codes with a panel placed in them)
-def df_with_updated_picks(combined_df, picks, load=None, save=None):
-
-    if load is not None and exists(load):
-        return pd.read_csv(load)
-
-    new_df = combined_df
-    new_co = np.array(new_df['carbon_offset_metric_tons'])
-    new_existing = np.array(new_df['existing_installs_count'])
-
-    for pick in tqdm(picks):
-        index = list(new_df['region_name']).index(pick)
-        new_co[index] -= new_df['carbon_offset_metric_tons_per_panel'][index]
-        new_existing[index] += 1
-    
-    print('carbon offset difference:', np.sum(new_df['carbon_offset_metric_tons'] - new_co))
-    new_df['carbon_offset_metric_tons'] = new_co
-    new_df['carbon_offset_kg'] = new_co * 1000
-    print('Number install change:', np.sum(new_existing - new_df['existing_installs_count']) )
-    new_df['existing_installs_count'] = new_existing
-    new_df['existing_installs_count_per_capita'] = new_existing / new_df['Total_Population']
-    new_df['panel_utilization'] = new_existing / new_df['number_of_panels_total']
-
-    if save is not None:
-        new_df.to_csv(save, index=False)
-
-    return new_df
 
 def plot_demo_state_stats(new_df,save="Clean_Data/data_by_state_proj.csv"):
     state_df = load_state_data(new_df, load=None, save=save)

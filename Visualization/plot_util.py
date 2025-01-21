@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scipy
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -13,6 +14,7 @@ import io
 from PIL import Image
 import branca.colormap as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from tqdm import tqdm
 
 def fit_dat_and_plot(x, y, deg, label="", label_plot=False, log=False):
 
@@ -37,9 +39,9 @@ def fit_dat_and_plot(x, y, deg, label="", label_plot=False, log=False):
         pred = np.exp(pred)
 
     if label_plot:
-        plt.plot(x, pred, label=str(deg) + " degree polynomial best fit -- " + label, linewidth=6) 
+        plt.plot(x, pred, label=str(deg) + " degree polynomial best fit -- " + label, linewidth=2) 
     else: 
-        plt.plot(x, pred, linewidth=9) 
+        plt.plot(x, pred, linewidth=6) 
 
     return coeff
 
@@ -134,6 +136,7 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
     '''
 
     keys = combined_df.keys()
+    corrs = []
 
     for (key, range, label, color) in bins:
         low, high = range
@@ -141,6 +144,8 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
             mask1 = (low <= combined_df[key]) 
             df = combined_df[mask1] 
             mask2 = (df[key] < high)
+            corr, _ = scipy.stats.pearsonr(x[mask1][mask2], y[mask1][mask2])
+            corrs.append(str(np.round(corr, 2)))
             scatter_plot(x=x[mask1][mask2], y=y[mask1][mask2], fit=fit, show=False, label=label, color=color, label_fit=False,fontsize=fontsize)
         else:
             print("Key error in Complex Scatter on key:", key, " -- not a valid key for census or solar, skipping")
@@ -169,10 +174,10 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
                 Line2D([0], [0],marker='o',  color='orange', lw=4, label='Low-Middle Carbon Offset'),
                 Line2D([0], [0],marker='o',  color='green', lw=4, label='High-Middle Carbon Offset'),
                 Line2D([0], [0],marker='o',  color='red', lw=4, label='High Carbon Offset')]
-            legend_elements = [Line2D([0], [0], marker='o', markersize=8,color='blue', lw=0, label='Carbon Offset in 0 to 25-th percentile'),
-                Line2D([0], [0],marker='o',  color='orange',markersize=8, lw=0, label='Carbon Offset in 25 to 50-th percentile'),
-                Line2D([0], [0],marker='o',  color='green',markersize=8, lw=0, label='Carbon Offset in 50 to 75-th percentile'),
-                Line2D([0], [0],marker='o',  color='red',markersize=8, lw=0, label='Carbon Offset in 75 to 100-th percentile')]
+            legend_elements = [Line2D([0], [0], marker='o', markersize=8,color='blue', lw=0, label='Carbon Offset in 0 to 25-th percentile, PCC = '+corrs[0]),
+                Line2D([0], [0],marker='o',  color='orange',markersize=8, lw=0, label='Carbon Offset in 25 to 50-th percentile, PCC = '+corrs[1]),
+                Line2D([0], [0],marker='o',  color='green',markersize=8, lw=0, label='Carbon Offset in 50 to 75-th percentile, PCC = '+corrs[2]),
+                Line2D([0], [0],marker='o',  color='red',markersize=8, lw=0, label='Carbon Offset in 75 to 100-th percentile, PCC = '+corrs[3])]
             
             plt.legend(handles=legend_elements, fontsize=fontsize*0.75)
         if title is None:
@@ -414,6 +419,50 @@ def plot_state_stats(stats_df, key, states=None, sort_by='mean'):
 
 
     plt.title("States sorted by "+ sort_by +" of "+ key+ title_add +" -- (bottom and top 5)")
+    plt.legend()
+    plt.show()
+
+# Gets the pareto-optimal elements of eval_df over 2 objectives obj1 and obj2
+def get_pareto_subset(eval_df, obj1, obj2):
+    p_optimal_df = pd.DataFrame.copy(eval_df)
+    for eval_index, row in tqdm(eval_df.iterrows()):
+        # p_optimal_df = pd.concat([row, p_optimal_df], axis=1, ignore_index=True)
+
+        for opt_index, in_opt in p_optimal_df.iterrows():
+
+            if in_opt[obj1] < row[obj1] and in_opt[obj2] < row[obj2]:
+                p_optimal_df.drop(opt_index, inplace=True)
+
+    
+    return p_optimal_df
+
+# Creates a pareto-front plot based on 2 objectives stored in eval_df
+# others are other strategies to plot alongside the main bulk for comparison
+def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Generation':1, 'Racial Equity':1, 'Income Equity':1}):
+    pareto_optimal_df = get_pareto_subset(eval_df, obj1, obj2)
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted')
+    plt.xlabel(obj1)
+    plt.ylabel(obj2)
+
+
+    plt.scatter(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], label='Pareto Optimal linear weighted')
+    if fit is not None:
+
+        coeff = np.polynomial.polynomial.Polynomial.fit(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], fit).convert().coef
+        x = np.linspace(min(pareto_optimal_df[obj1]/scale[obj1]), max(pareto_optimal_df[obj1]/scale[obj1]), 50)
+        pred = np.zeros(x.shape)
+        for i in range(fit + 1):
+            pred += coeff[i] * (x ** i)
+
+        plt.plot(x, pred, label="Quadratic fit")
+
+    for other in others:
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], marker='X', color='red', label=other['label'])
+    
+    xmin, xmax, ymin, ymax = plt.axis()
+    plt.vlines(1, ymin, ymax, colors=['black'], linestyles='dashed', linewidth=3)
+    plt.hlines(1, xmin, xmax, colors=['black'], linestyles='dashed', linewidth=3)
+
     plt.legend()
     plt.show()
 

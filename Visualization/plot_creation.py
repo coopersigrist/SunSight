@@ -30,7 +30,7 @@ Full list of color scales:
 'ylorrd'
 '''
 
-combined_df = make_dataset(remove_outliers=True)
+combined_df = make_dataset(remove_outliers=False)
 
 pop_bins_quartile = q_binning(combined_df['Total_Population'].values, 'Total_Population', q=4, legible_label="Population")
 white_prop_bins_quartile = q_binning(combined_df['white_prop'].values, 'white_prop', q=4, legible_label="White Proportion")
@@ -63,7 +63,9 @@ state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
 # geo_plot(combined_df['carbon_offset_kg_per_panel'] ,'rainbow', "Carbon offset (kg) per panel", edf=combined_df)
 
 # Main/ Intro Plot 
-# complex_scatter(combined_df=combined_df, x=combined_df['carbon_offset_metric_tons'] *1000, y=combined_df['existing_installs_count'], xlabel="Carbon Offset Potential (Kg)", ylabel="Existing Installs", title="", bins=co_bins_quartile, fit=[2], legend=True, square=True, fontsize=20)
+complex_scatter(combined_df=combined_df, x=combined_df['carbon_offset_metric_tons'] *1000, y=combined_df['existing_installs_count'], xlabel="Carbon Offset Potential (Kg)", ylabel="Existing Installs", title="", bins=co_bins_quartile, fit=[2], legend=True, square=True, fontsize=20)
+
+quit()
 
 # print("CO/panel var:", np.std(combined_df['carbon_offset_metric_tons_per_panel'] *1000))
 # print("Energy Generation Potential (kWh/panel) var:", np.std(combined_df['yearly_sunlight_kwh_kw_threshold_avg']*0.4 ))
