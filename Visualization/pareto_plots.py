@@ -7,26 +7,28 @@ n = 10000
 objs = ['Carbon Offset', 'Energy Generation', 'Racial Equity', 'Income Equity']
 
 combined_df = combined_df = make_dataset(remove_outliers=True)
-projections, picked = create_projections(combined_df, n=n, load=False, metric='carbon_offset_metric_tons_per_panel', save=False)
+projections = create_projections(combined_df, n_panels=n)
 
-sq_evals = {'Carbon Offset': create_continued_projection(combined_df, n=n, metric='carbon_offset_metric_tons_per_panel')[-1], 
-            'Energy Generation': create_continued_projection(combined_df, n=n, metric='yearly_sunlight_kwh_kw_threshold_avg')[-1], 
-            'Racial Equity': calc_equity(combined_df, type='racial'), 
-            'Income Equity': calc_equity(combined_df, type='income'),
+sq_evals = {'Carbon Offset': projections[0].objective_projections['Carbon Offset'][n], 
+            'Energy Generation': projections[0].objective_projections['Energy Potential'][n], 
+            'Racial Equity': projections[0].objective_projections['Racial Equity'][n], 
+            'Income Equity': projections[0].objective_projections['Income Equity'][n],
             'label':"Status Quo"}
 
-new_df = df_with_updated_picks(combined_df, picked['Round Robin'])
-rr_evals = {'Carbon Offset': calc_obj_by_picked(combined_df, list(picked['Round Robin']), metric='carbon_offset_metric_tons_per_panel', cull=True), 
-            'Energy Generation': calc_obj_by_picked(combined_df, list(picked['Round Robin'].values), metric='yearly_sunlight_kwh_kw_threshold_avg', cull=True), 
-            'Racial Equity': calc_equity(new_df, type='racial'), 
-            'Income Equity': calc_equity(new_df, type='income'),
+max_rr_placed = max(projections[-1].objective_projections['Carbon Offset'].keys())
+
+rr_evals = {'Carbon Offset': projections[-1].objective_projections['Carbon Offset'][max_rr_placed], 
+            'Energy Generation': projections[-1].objective_projections['Energy Potential'][max_rr_placed], 
+            'Racial Equity': projections[-1].objective_projections['Racial Equity'][max_rr_placed], 
+            'Income Equity': projections[-1].objective_projections['Income Equity'][max_rr_placed],
             'label': "Round Robin"}
 
-linear_evals_df = linear_weighted_gridsearch(combined_df, load='Projection_Data/weighted_gridsearch_'+str(n)+'.csv')
+objectives = create_paper_objectives()
+linear_evals_df = linear_weighted_gridsearch(combined_df, load='Projection_Data/weighted_gridsearch_'+str(n)+'.csv', )
 
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Generation', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
 create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
 create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Energy Generation', 'Racial Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Energy Generation', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
 create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)

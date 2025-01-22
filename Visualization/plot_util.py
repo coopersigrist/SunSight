@@ -440,12 +440,12 @@ def get_pareto_subset(eval_df, obj1, obj2):
 # others are other strategies to plot alongside the main bulk for comparison
 def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Generation':1, 'Racial Equity':1, 'Income Equity':1}):
     pareto_optimal_df = get_pareto_subset(eval_df, obj1, obj2)
-    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted')
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted', s=3)
     plt.xlabel(obj1)
     plt.ylabel(obj2)
 
 
-    plt.scatter(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], label='Pareto Optimal linear weighted')
+    plt.scatter(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], label='Pareto Optimal linear weighted', s=3)
     if fit is not None:
 
         coeff = np.polynomial.polynomial.Polynomial.fit(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], fit).convert().coef
@@ -454,13 +454,13 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
         for i in range(fit + 1):
             pred += coeff[i] * (x ** i)
 
-        plt.plot(x, pred, label="Quadratic fit")
+        plt.plot(x, pred, linewidth=4, label="Quadratic fit")
 
     for other in others:
-        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], marker='X', color='red', label=other['label'])
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=5, marker='X', color='red', label=other['label'])
     
     xmin, xmax, ymin, ymax = plt.axis()
-    plt.vlines(1, ymin, ymax, colors=['black'], linestyles='dashed', linewidth=3)
+    plt.vlines(1, ymin, ymax, colors=['black'], linestyles='dashed', linewidth=3, label="Status Quo")
     plt.hlines(1, xmin, xmax, colors=['black'], linestyles='dashed', linewidth=3)
 
     plt.legend()
