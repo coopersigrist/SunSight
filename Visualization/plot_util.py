@@ -434,6 +434,7 @@ def get_pareto_subset(eval_df, obj1, obj2, save=None, load=None):
     for eval_index, row in tqdm(eval_df.iterrows()):
         # p_optimal_df = pd.concat([row, p_optimal_df], axis=1, ignore_index=True)
 
+
         for opt_index, in_opt in p_optimal_df.iterrows():
 
             if in_opt[obj1] < row[obj1] and in_opt[obj2] < row[obj2]:
@@ -466,16 +467,17 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     xmin=np.min(eval_df.values)
     ymax=np.max(eval_df.values)
 
-    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=5, label="Status Quo", zorder = -1, alpha =0.4)
-    plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=5, zorder = -1, alpha =0.4)
+    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=5, label=scale['label'], zorder = -1, alpha =0.5)
+    plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=5, zorder = -1, alpha =0.5)
 
-    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted', s=s, alpha=0.4)
-    plt.xlabel(obj1)
-    plt.ylabel(obj2)
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3)
+    plt.xlabel(obj1 + " (Ratio to "+scale['label']+")", labelpad=10, fontsize=15)
+    plt.ylabel(obj2 + " (Ratio to  "+scale['label']+")", labelpad=10, fontsize=15)
 
-    plt.plot(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], marker='o', markersize=s/(2**4), label='Pareto Optimal linear weighted', linewidth=5)
+    plt.plot(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], marker='o', markersize=s/(2**4), label='Pareto Optimal Weights', linewidth=5)
+    
+    # This block will fit the selected polynomial to the pareto optimal solutions and plot them
     if fit is not None:
-
         coeff = np.polynomial.polynomial.Polynomial.fit(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], fit).convert().coef
         left = np.linspace(xmin, min(pareto_optimal_df[obj1]/scale[obj1]), 50)
         between = np.linspace(min(pareto_optimal_df[obj1]/scale[obj1]), max(pareto_optimal_df[obj1]/scale[obj1]), 50)

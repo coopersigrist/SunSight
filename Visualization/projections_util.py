@@ -116,7 +116,12 @@ def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list
     for obj in objectives:
         obj_val = obj.calc(combined_df, panel_placements=panel_placements)
         obj_ratio = obj_val/n_panels
-        objective_projections[obj.name] = { n:n*obj_ratio for n in range(n_panels+1)}
+
+        # Shortcut for calcing progressively increasing projections quickly, doesnt work for equity
+        if obj.name not in ['Racial Equity', 'Income Equity']:
+            objective_projections[obj.name] = { n:n*obj_ratio for n in range(n_panels+1)}
+        else:
+            objective_projections[obj.name] = { n:obj_val for n in range(n_panels+1)}
 
     sq_projection = Projection(objective_projections, panel_placements, name="Staus Quo")
 
@@ -208,7 +213,7 @@ def create_round_robin_projection(combined_df, n_panels=1000, projections:list[P
     for i in range(len(projections)):
 
         # small issue here -- could over palce panels in a zip if multiple choose the same ZIP, TODO fix this.
-        partial_panel_placement = get_zips_of_first_nth_panels(n_panels//4, projections[i%len(projections)].panel_placements)
+        partial_panel_placement = get_zips_of_first_nth_panels(n_panels//len(projections), projections[i%len(projections)].panel_placements)
 
         for zip in partial_panel_placement:
             if zip in panel_placements:
@@ -225,13 +230,16 @@ def create_round_robin_projection(combined_df, n_panels=1000, projections:list[P
 
 # Creates the projection of a policy which weighs multiple different factors (objectives)
 # and greedily chooses zips based on the weighted total of proportions to national avg. 
-def create_weighted_proj(combined_df, n_panels=1000, attributes=['carbon_offset_metric_tons_per_panel'], weights=[1], objectives:list[Objective]=[]):
+def create_weighted_proj(combined_df, n_panels=1000, attributes=['carbon_offset_metric_tons_per_panel'], weights=[1], objectives:list[Objective]=[], scale='normalize'):
 
     new_df = combined_df
     new_df['weighted_combo_metric'] = combined_df[attributes[0]] * 0
 
     for weight, obj in zip(weights,attributes):
-        new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (combined_df[obj] / np.mean(combined_df[obj])) * weight
+        if scale == 'avg':
+            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (combined_df[obj] / np.mean(combined_df[obj])) * weight
+        else:
+            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + ((combined_df[obj] - np.min(combined_df[obj])) / (np.max(combined_df[obj]) - np.min(combined_df[obj]))) * weight
 
     return create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='weighted_combo_metric', objectives=objectives)
 
@@ -272,7 +280,7 @@ def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='
     proj.append(create_greedy_projection(combined_df, n_panels, sort_by='Median_income', ascending=True, objectives=objectives, name="Income-Equity Aware"))
 
     print("Creating Round Robin Projection")
-    proj.append(create_round_robin_projection(combined_df, projections=proj[1:4],
+    proj.append(create_round_robin_projection(combined_df, projections=proj[1:5],
                                                         n_panels=n_panels,
                                                         objectives=objectives))
 
@@ -301,7 +309,7 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
     
     all_scores = np.zeros((n_samples**(len(attributes)), len(attributes) + len(objectives)))
     weights = np.zeros(len(attributes))
-    weights[0] = 1
+    # weights[0] = 1
     i = 0
 
     for i in tqdm(range(n_samples**(len(attributes)))):
@@ -310,14 +318,14 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
 
         all_scores[i] = np.append(weights, obj_scores)
 
-        for j in range(len(weights)-1, 0, -1):
-            if weights[j] < max_weights[j]:
+        for j in range(len(weights)-1, -1, -1):
+            if abs(weights[j]) < abs(max_weights[j] - max_weights[j] / n_samples):
                 weights[j] += max_weights[j] / n_samples
                 break
             else:
                 weights[j] = 0
 
-    scores_df = pd.DataFrame(all_scores)
+    scores_df = pd.DataFrame(all_scores, header=attributes+[obj.name for obj in objectives])
     if save is not None:   
         scores_df.to_csv(save, header=attributes+[obj.name for obj in objectives], index=False)
 
@@ -330,7 +338,7 @@ if __name__ == '__main__':
     n_panels = 10000
     test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
                                       attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.ones(4)*2, n_samples=7, 
+                                      objectives=objectives, max_weights=np.array([2,2,2,-2]), n_samples=5, 
                                       save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
                                       load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
 

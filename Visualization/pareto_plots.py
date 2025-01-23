@@ -3,7 +3,7 @@ from plot_util import *
 from projections_util import *
 from tqdm import tqdm
 
-n_panels = 100000
+n_panels = 15000
 objs = ['Carbon Offset', 'Energy Generation', 'Racial Equity', 'Income Equity']
 
 combined_df = combined_df = make_dataset(remove_outliers=True)
@@ -17,8 +17,6 @@ sq_evals = {'Carbon Offset': projections[0].objective_projections['Carbon Offset
 
 max_rr_placed = max(projections[-1].objective_projections['Carbon Offset'].keys())
 
-print(projections[-1].objective_projections['Racial Equity'])
-
 rr_evals = {'Carbon Offset': projections[-1].objective_projections['Carbon Offset'][max_rr_placed], 
             'Energy Potential': projections[-1].objective_projections['Energy Potential'][max_rr_placed], 
             'Racial Equity': projections[-1].objective_projections['Racial Equity'][max_rr_placed], 
@@ -30,13 +28,13 @@ print("Beginning Linear Gridsearch")
 objectives = create_paper_objectives()
 linear_evals_df = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
                                       attributes=['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.ones(4)*2, n_samples=7, 
-                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
-                                      load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+                                      objectives=objectives, max_weights=np.array([2,2,2,-2]), n_samples=5, 
+                                      save="Linear_Weight_Data/weighted_gridsearch_"+str(n_panels)+"_panels.csv",
+                                      load="Linear_Weight_Data/weighted_gridsearch_"+str(n_panels)+"_panels.csv")
 
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_EP.csv")
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_RE.csv")
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_IE.csv")
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"EP_RE.csv")
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"EP_IE.csv")
-create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"RE_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_EP.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_RE_IE.csv")
