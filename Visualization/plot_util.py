@@ -11,6 +11,7 @@ from decimal import Decimal
 import seaborn as sns
 import folium as fl
 import io
+import os
 from PIL import Image
 import branca.colormap as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -423,8 +424,13 @@ def plot_state_stats(stats_df, key, states=None, sort_by='mean'):
     plt.show()
 
 # Gets the pareto-optimal elements of eval_df over 2 objectives obj1 and obj2
-def get_pareto_subset(eval_df, obj1, obj2):
+def get_pareto_subset(eval_df, obj1, obj2, save=None, load=None):
+
+    if load is not None and os.path.exists(load):
+        return pd.read_csv(load)
+
     p_optimal_df = pd.DataFrame.copy(eval_df)
+
     for eval_index, row in tqdm(eval_df.iterrows()):
         # p_optimal_df = pd.concat([row, p_optimal_df], axis=1, ignore_index=True)
 
@@ -433,37 +439,64 @@ def get_pareto_subset(eval_df, obj1, obj2):
             if in_opt[obj1] < row[obj1] and in_opt[obj2] < row[obj2]:
                 p_optimal_df.drop(opt_index, inplace=True)
 
+    if save is not None:
+        p_optimal_df.to_csv(save)
     
     return p_optimal_df
 
 # Creates a pareto-front plot based on 2 objectives stored in eval_df
 # others are other strategies to plot alongside the main bulk for comparison
-def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Generation':1, 'Racial Equity':1, 'Income Equity':1}):
-    pareto_optimal_df = get_pareto_subset(eval_df, obj1, obj2)
-    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted', s=3)
+def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Generation':1, 'Racial Equity':1, 'Income Equity':1}, load=None):
+    
+    pareto_optimal_df = get_pareto_subset(eval_df, obj1, obj2, save=load, load=load)
+    pareto_optimal_df = pareto_optimal_df.sort_values(obj1, inplace=False, ignore_index=True) # so they plot in order from lowest to highest x value
+
+    ax = plt.gca()
+
+    xmin = np.min(np.append(eval_df[obj1], others[0][obj1]))/scale[obj1] * 0.9
+    xmax = np.max(np.append(eval_df[obj1], others[0][obj1]))/scale[obj1] * 1.1
+    ymin = np.min(np.append(eval_df[obj2], others[0][obj2]))/scale[obj2] * 0.9
+    ymax = np.max(np.append(eval_df[obj2], others[0][obj2]))/scale[obj2] * 1.1
+
+    s = int((1.8*2)**4)
+
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([ymin, ymax])
+
+    xmin=np.min(eval_df.values)
+    ymax=np.max(eval_df.values)
+
+    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=5, label="Status Quo", zorder = -1, alpha =0.4)
+    plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=5, zorder = -1, alpha =0.4)
+
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All linear weighted', s=s, alpha=0.4)
     plt.xlabel(obj1)
     plt.ylabel(obj2)
 
-
-    plt.scatter(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], label='Pareto Optimal linear weighted', s=3)
+    plt.plot(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], marker='o', markersize=s/(2**4), label='Pareto Optimal linear weighted', linewidth=5)
     if fit is not None:
 
         coeff = np.polynomial.polynomial.Polynomial.fit(pareto_optimal_df[obj1]/scale[obj1], pareto_optimal_df[obj2]/scale[obj2], fit).convert().coef
-        x = np.linspace(min(pareto_optimal_df[obj1]/scale[obj1]), max(pareto_optimal_df[obj1]/scale[obj1]), 50)
-        pred = np.zeros(x.shape)
+        left = np.linspace(xmin, min(pareto_optimal_df[obj1]/scale[obj1]), 50)
+        between = np.linspace(min(pareto_optimal_df[obj1]/scale[obj1]), max(pareto_optimal_df[obj1]/scale[obj1]), 50)
+        right = np.linspace(max(pareto_optimal_df[obj1]/scale[obj1]), xmax, 50)
+        left_pred = np.zeros(left.shape)
+        right_pred = np.zeros(right.shape)
+        bet_pred = np.zeros(between.shape)
         for i in range(fit + 1):
-            pred += coeff[i] * (x ** i)
+            left_pred += coeff[i] * (left ** i)
+            right_pred += coeff[i] * (right ** i)
+            bet_pred += coeff[i] * (between ** i)
 
-        plt.plot(x, pred, linewidth=4, label="Quadratic fit")
+        plt.plot(left, left_pred, linewidth=4, label="Estimated Pareto Frontier", color='blue', linestyle='dashed', alpha=0.5)
+        plt.plot(between, bet_pred, linewidth=4, color='blue', linestyle='dashed', alpha=0.2)
+        plt.plot(right, right_pred, linewidth=4, color='blue', linestyle='dashed', alpha=0.5)
 
     for other in others:
-        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=5, marker='X', color='red', label=other['label'])
-    
-    xmin, xmax, ymin, ymax = plt.axis()
-    plt.vlines(1, ymin, ymax, colors=['black'], linestyles='dashed', linewidth=3, label="Status Quo")
-    plt.hlines(1, xmin, xmax, colors=['black'], linestyles='dashed', linewidth=3)
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color='red', label=other['label'], zorder = 100)
 
     plt.legend()
+    plt.tight_layout()
     plt.show()
 
 

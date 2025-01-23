@@ -184,38 +184,25 @@ def get_zips_of_first_nth_panels(n_panels:int, panel_placements:dict) -> dict:
     raise ValueError("Tried to get zip of panel number "+ str(n_panels) + " but there were not that many placed panels in the given dict") 
 
 # Makes a round robin projection (without placements) for a single objective 
-def make_rr_proj_from_projs(n_panels, projections:list[Projection], objective:Objective) -> dict:
+def make_rr_proj_from_projs(combined_df:pd.DataFrame, panel_placements:dict, objectives:list[Objective]) -> dict:
 
-    rr_projection = dict()
+    # setup
+    rr_projection = {obj.name : dict() for obj in objectives}
+    counted_placements = dict()
 
-    # A list of the proj dicts for just the given objective
-    projection_dicts = [proj.objective_projections[objective.name] for proj in projections] # list[dict]
-    projection_tuple_list = [list(dic.items()) for dic in projection_dicts] # list[list[tuple]]
-    projection_tuple_list = [[[num, 0 if num==0 else obj/num] for num,obj in proj] for proj in projection_tuple_list] # Changed full obj value to a ratio, still list[list[tuple]]
+    panel_total = 0 
+    for zip in panel_placements:
+        counted_placements.update({zip:panel_placements[zip]}) # Adds a new element (zip: #panels) to the rr projection dict
+        panel_total += panel_placements[zip]
 
-
-    panel_counter = 0
-    objective_value = 0
-    while panel_counter < n_panels:
-
-        panels_to_add = min([proj[1][0] for proj in projection_tuple_list]) # chooses the projection whose first chosen zip has the fewest panels, gives that number
-        panels_to_add = min(panels_to_add, (n_panels-panel_counter)//4 + 1) # caps the number added to be at most n_panels total
-
-        for proj in projection_tuple_list:
-            panel_counter += panels_to_add # Updates the current number of panel counter
-            objective_value = objective_value + panels_to_add * proj[1][1] # updates the value of the objective based on new panels added
-            rr_projection[panel_counter] = objective_value # Updates the proj to include newly added panels
-            
-            # Updates the projections used to remove the appropriate number of panels or delete the entry
-            if proj[1][0] == panels_to_add:
-                del proj[1]
-            else:
-                proj[1][0] -= panels_to_add
+        # updates each rr projection (key'd by obj.name) with a #panels : objective score after that many panels
+        for obj in objectives:
+            rr_projection[obj.name].update({panel_total : obj.calc(combined_df, counted_placements)})
 
     return rr_projection
 
 # Creates a projection which decides each placement alternating between different policies
-def create_round_robin_projection(n_panels=1000, projections:list[Projection]=[], objectives:list[Objective]=[]):
+def create_round_robin_projection(combined_df, n_panels=1000, projections:list[Projection]=[], objectives:list[Objective]=[]):
     # Creates a Projection object via the round robin startegy over a give list of projections
     panel_placements = {}
     for i in range(len(projections)):
@@ -230,9 +217,7 @@ def create_round_robin_projection(n_panels=1000, projections:list[Projection]=[]
                 panel_placements[zip] = partial_panel_placement[zip]
 
     # Creates the actual projection for each objective
-    objective_projections = {}
-    for obj in objectives:
-        objective_projections[obj.name] = make_rr_proj_from_projs(n_panels, projections, obj)
+    objective_projections = make_rr_proj_from_projs(combined_df, panel_placements, objectives)
     
     rr_projection = Projection(objective_projections, panel_placements, name="Round Robin")
 
@@ -268,7 +253,8 @@ def create_random_proj(combined_df, n_panels=1000, metric='carbon_offset_metric_
 def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='paper', save=None, load=None) -> list[Projection]:
 
     if load is not None and os.path.exists(load):
-        return pickle.load(load)
+        with open(load, 'rb') as dir:
+            return pickle.load(dir)
 
     if objectives == 'paper':
         objectives = create_paper_objectives()
@@ -286,13 +272,14 @@ def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='
     proj.append(create_greedy_projection(combined_df, n_panels, sort_by='Median_income', ascending=True, objectives=objectives, name="Income-Equity Aware"))
 
     print("Creating Round Robin Projection")
-    proj.append(create_round_robin_projection(projections=proj[1:4],
+    proj.append(create_round_robin_projection(combined_df, projections=proj[1:4],
                                                         n_panels=n_panels,
                                                         objectives=objectives))
 
 
     if save is not None:
-        pickle.dump(proj, save, pickle.HIGHEST_PROTOCOL)
+        with open(load, 'wb') as dir:
+            pickle.dump(proj, dir, pickle.HIGHEST_PROTOCOL)
 
     return proj
 
@@ -332,7 +319,7 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
 
     scores_df = pd.DataFrame(all_scores)
     if save is not None:   
-        scores_df.to_csv(save, header=attributes+objectives, index=False)
+        scores_df.to_csv(save, header=attributes+[obj.name for obj in objectives], index=False)
 
     return scores_df
 
@@ -340,9 +327,11 @@ if __name__ == '__main__':
     # TEST
     combined_df = make_dataset(remove_outliers=True)
     objectives = create_paper_objectives()
-    n_panels = 1000000
+    n_panels = 10000
     test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
-                                      attributes=['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.ones(4)*2, n_samples=5, 
-                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+                                      attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
+                                      objectives=objectives, max_weights=np.ones(4)*2, n_samples=7, 
+                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
+                                      load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+
     print(test)

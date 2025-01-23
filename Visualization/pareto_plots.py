@@ -3,32 +3,40 @@ from plot_util import *
 from projections_util import *
 from tqdm import tqdm
 
-n = 10000
+n_panels = 100000
 objs = ['Carbon Offset', 'Energy Generation', 'Racial Equity', 'Income Equity']
 
 combined_df = combined_df = make_dataset(remove_outliers=True)
-projections = create_projections(combined_df, n_panels=n)
+projections = create_projections(combined_df, n_panels=n_panels, save='Projection_Data/all_projections_'+str(n_panels)+'_panels.pkl', load='Projection_Data/all_projections_'+str(n_panels)+'_panels.pkl')
 
-sq_evals = {'Carbon Offset': projections[0].objective_projections['Carbon Offset'][n], 
-            'Energy Generation': projections[0].objective_projections['Energy Potential'][n], 
-            'Racial Equity': projections[0].objective_projections['Racial Equity'][n], 
-            'Income Equity': projections[0].objective_projections['Income Equity'][n],
+sq_evals = {'Carbon Offset': projections[0].objective_projections['Carbon Offset'][n_panels], 
+            'Energy Potential': projections[0].objective_projections['Energy Potential'][n_panels], 
+            'Racial Equity': projections[0].objective_projections['Racial Equity'][n_panels], 
+            'Income Equity': projections[0].objective_projections['Income Equity'][n_panels],
             'label':"Status Quo"}
 
 max_rr_placed = max(projections[-1].objective_projections['Carbon Offset'].keys())
 
+print(projections[-1].objective_projections['Racial Equity'])
+
 rr_evals = {'Carbon Offset': projections[-1].objective_projections['Carbon Offset'][max_rr_placed], 
-            'Energy Generation': projections[-1].objective_projections['Energy Potential'][max_rr_placed], 
+            'Energy Potential': projections[-1].objective_projections['Energy Potential'][max_rr_placed], 
             'Racial Equity': projections[-1].objective_projections['Racial Equity'][max_rr_placed], 
             'Income Equity': projections[-1].objective_projections['Income Equity'][max_rr_placed],
             'label': "Round Robin"}
 
-objectives = create_paper_objectives()
-linear_evals_df = linear_weighted_gridsearch(combined_df, load='Projection_Data/weighted_gridsearch_'+str(n)+'.csv', )
+print("Beginning Linear Gridsearch")
 
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
-create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=2, others=[sq_evals, rr_evals], scale=sq_evals)
+objectives = create_paper_objectives()
+linear_evals_df = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
+                                      attributes=['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop', 'Median_income'], 
+                                      objectives=objectives, max_weights=np.ones(4)*2, n_samples=7, 
+                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
+                                      load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_EP.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"CO_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"EP_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"EP_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=1, others=[rr_evals], scale=sq_evals, load='Projection_Data/Pareto_opt_'+str(n_panels)+"RE_IE.csv")
