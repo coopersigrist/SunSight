@@ -431,7 +431,7 @@ def get_pareto_subset(eval_df, obj1, obj2, save=None, load=None):
 
     p_optimal_df = pd.DataFrame.copy(eval_df)
 
-    for eval_index, row in tqdm(eval_df.iterrows()):
+    for eval_index, row in tqdm(list(eval_df.iterrows())):
         # p_optimal_df = pd.concat([row, p_optimal_df], axis=1, ignore_index=True)
 
 
@@ -495,7 +495,7 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
         plt.plot(right, right_pred, linewidth=4, color='blue', linestyle='dashed', alpha=0.5)
 
     for other in others:
-        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color='red', label=other['label'], zorder = 100)
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color=other['color'], label=other['label'], zorder = 100)
 
     plt.legend()
     plt.tight_layout()

@@ -83,6 +83,13 @@ def calc_equity(combined_df, placed_panels, type="racial", by='panel_utilization
     low_avg = np.mean(combined_df[combined_df[metric] < metric_median]['panel_utilization'].values)
     avg = np.mean(combined_df['panel_utilization'].values)
 
+    # if metric in ['Median_income', 'black_prop']:
+    #     print('------------' + metric + '-------------')
+    #     print(high_avg)
+    #     print(low_avg)
+    #     print(avg)
+    #     print(2 - np.abs(high_avg-low_avg)/avg)
+
     return 2 - np.abs(high_avg-low_avg)/avg
 
 # Calculates amount of a given metric (per panle metric) gained by placing panels according to picked starting with combined_df
@@ -309,7 +316,6 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
     
     all_scores = np.zeros((n_samples**(len(attributes)), len(attributes) + len(objectives)))
     weights = np.zeros(len(attributes))
-    # weights[0] = 1
     i = 0
 
     for i in tqdm(range(n_samples**(len(attributes)))):
@@ -318,6 +324,7 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
 
         all_scores[i] = np.append(weights, obj_scores)
 
+        # Increment weights
         for j in range(len(weights)-1, -1, -1):
             if abs(weights[j]) < abs(max_weights[j] - max_weights[j] / n_samples):
                 weights[j] += max_weights[j] / n_samples
@@ -325,7 +332,12 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
             else:
                 weights[j] = 0
 
-    scores_df = pd.DataFrame(all_scores, header=attributes+[obj.name for obj in objectives])
+    scores_df = pd.DataFrame()
+
+    for i, key in enumerate(attributes + [obj.name for obj in objectives]):
+        scores_df[key] = all_scores.T[i]
+    print(scores_df)
+
     if save is not None:   
         scores_df.to_csv(save, header=attributes+[obj.name for obj in objectives], index=False)
 
@@ -338,7 +350,7 @@ if __name__ == '__main__':
     n_panels = 10000
     test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
                                       attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.array([2,2,2,-2]), n_samples=5, 
+                                      objectives=objectives, max_weights=np.array([2,2,-2,2]), n_samples=5, 
                                       save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
                                       load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
 
