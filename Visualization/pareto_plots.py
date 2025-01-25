@@ -31,6 +31,13 @@ neat_lex = {'Carbon Offset': 1.61 * sq_evals['Carbon Offset'],
             'label': "Neat Lexicase",
             'color': "black"}
 
+neat_tournament = {'Carbon Offset': 1.69 * sq_evals['Carbon Offset'], 
+            'Energy Potential': 0.97 * sq_evals['Energy Potential'], 
+            'Racial Equity': 1.25 * sq_evals['Racial Equity'], 
+            'Income Equity': 1.33 * sq_evals['Income Equity'],
+            'label': "Neat Tournament",
+            'color': "green"}
+
 
 
 print(rr_evals['Income Equity'])
@@ -39,13 +46,15 @@ print("Beginning Linear Gridsearch")
 objectives = create_paper_objectives()
 linear_evals_df = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
                                       attributes=['carbon_offset_metric_tons_per_panel', 'yearly_sunlight_kwh_kw_threshold_avg', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.array([2,2,2,-2]), n_samples=7, 
+                                      objectives=objectives, max_weights=np.array([2,2,2,-2]), n_samples=5, 
                                       save="Linear_Weight_Data/weighted_gridsearch_"+str(n_panels)+"_panels.csv",
                                       load="Linear_Weight_Data/weighted_gridsearch_"+str(n_panels)+"_panels.csv")
 
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_EP.csv")
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_RE.csv")
-create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_IE.csv")
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_RE.csv")
-create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_IE.csv")
-create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=1, others=[rr_evals, neat_lex], scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_RE_IE.csv")
+others = [rr_evals, neat_lex, neat_tournament]
+
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Energy Potential', fit=2, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_EP.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Racial Equity', fit=1, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Carbon Offset', 'Income Equity', fit=1, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_CO_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Racial Equity', fit=1, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_RE.csv")
+create_pareto_front_plots(linear_evals_df, 'Energy Potential', 'Income Equity', fit=1, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_EP_IE.csv")
+create_pareto_front_plots(linear_evals_df, 'Racial Equity', 'Income Equity', fit=1, others=others, scale=sq_evals, load='Linear_Weight_Data/Pareto_opt/Pareto_opt_'+str(n_panels)+"_RE_IE.csv")

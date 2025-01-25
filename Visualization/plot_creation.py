@@ -63,9 +63,8 @@ state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
 # geo_plot(combined_df['carbon_offset_kg_per_panel'] ,'rainbow', "Carbon offset (kg) per panel", edf=combined_df)
 
 # Main/ Intro Plot 
-complex_scatter(combined_df=combined_df, x=combined_df['carbon_offset_metric_tons'] *1000, y=combined_df['existing_installs_count'], xlabel="Carbon Offset Potential (Kg)", ylabel="Existing Installs", title="", bins=co_bins_quartile, fit=[2], legend=True, square=True, fontsize=20)
+# complex_scatter(combined_df=combined_df, x=combined_df['carbon_offset_metric_tons'] *1000, y=combined_df['existing_installs_count'], xlabel="Carbon Offset Potential (Kg)", ylabel="Existing Installs", title="", bins=co_bins_quartile, fit=[2], legend=True, square=True, fontsize=20)
 
-quit()
 
 # print("CO/panel var:", np.std(combined_df['carbon_offset_metric_tons_per_panel'] *1000))
 # print("Energy Generation Potential (kWh/panel) var:", np.std(combined_df['yearly_sunlight_kwh_kw_threshold_avg']*0.4 ))
@@ -167,8 +166,10 @@ print("Plotting")
 
 
 # Plot just the clean vs fossil generation of each state
-# state_bar_plot(state_df, states=None, keys=['Clean_prop','Fossil_prop'], sort_by="Clean_prop", legend_loc='right', fontsize=40, ylabel="")
 
+
+# state_df['Non_solar_clean_prop'] = state_df['Clean_prop'] - state_df['Solar_prop']
+# state_bar_plot(state_df, states=None, keys=['Solar_prop', 'Non_solar_clean_prop','Fossil_prop'], sort_by="Clean_prop", legend_loc='upper center', fontsize=15, ylabel="", title='', colors=['green', 'blue', 'red'])
 # # Plot full breakdown of energy gen by state
 # state_bar_plot(state_df,states=None, keys=['Solar_prop', 'Bioenergy_prop', 'Coal_prop','Gas_prop','Hydro_prop','Nuclear_prop','Wind_prop', 'Other Renewables_prop', 'Other Fossil_prop'], sort_by="Solar_prop",legend_loc='right',fontsize=40, ylabel="")
 
@@ -196,7 +197,7 @@ exemplar_states = ['Texas', 'California', 'Mississippi', 'Delaware', 'Massachuse
 
 # state_df_no_dc = state_df[~no_dc]
 
-plot_state_map(state_df, key='carbon_offset_metric_tons_per_panel', fill_color='OrRd', legend_name="Carbon Offset Per Panel")
+# plot_state_map(state_df, key='carbon_offset_metric_tons_per_panel', fill_color='Greens', legend_name="Carbon Offset Per Panel")
 # plot_state_map(state_df, key='Fossil_prop')
 # plot_state_map(state_df[no_dc], key='Democrat_prop')
 # plot_state_map(state_df_no_dc, key='panel_utilization', fill_color='OrRd', legend_name="Panel Utilization")
@@ -206,8 +207,8 @@ plot_state_map(state_df, key='carbon_offset_metric_tons_per_panel', fill_color='
 # plot_state_map(state_df, key='white_prop')  
 # plot_state_map(state_df, key='carbon_offset_metric_tons')
 # plot_state_map(state_df[no_dc], key='existing_installs_count')
-# plot_state_map(state_df, key='yearly_sunlight_kwh_kw_threshold_avg', legend_name="Yearly Average Sunlight")
-# plot_state_map(state_df, key='Clean_prop', legend_name="Clean Energy Gen Proportion")
+# plot_state_map(state_df, key='yearly_sunlight_kwh_kw_threshold_avg', fill_color='Greens', legend_name="Yearly Average Sunlight")
+# plot_state_map(state_df, key='Clean_prop', fill_color='Greens', legend_name="Clean Energy Gen Proportion")
 # plot_state_map(state_df, key='Solar_prop')
 
 # Supporting plots (shows energy generation Splits)

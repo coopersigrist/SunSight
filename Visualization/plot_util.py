@@ -241,17 +241,19 @@ def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label=""
         )
     fig.show()
 
-def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California", 'New York', "US Total"], keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear'], ylabel="Proportion of energy generation", title="Energy Generation Proportions by state", sort_by=None,stack=True,legend_loc="auto",fontsize=None):
+def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California", 'New York', "US Total"], keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear'], ylabel="Proportion of energy generation", title="Energy Generation Proportions by state", sort_by=None,stack=True,legend_loc="auto",fontsize=None, colors=None):
 
     if states is not None:
         # Removes all states besides those in the 'states' list
         energy_gen_df = energy_gen_df[energy_gen_df['State'].isin(states)]
         
+    if sort_by is not None:
+        energy_gen_df = energy_gen_df.sort_values(sort_by)
+
     # Drop Total Generation so it doesn't plot
     df =  energy_gen_df[keys + ['State code']]
 
-    if sort_by is not None:
-        df = df.sort_values(sort_by)
+
 
     if states is None:
         df = pd.concat([df[:5], df[-5:]])
@@ -266,7 +268,7 @@ def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California"
     sns.set(style='white')
 
     #create stacked bar chart
-    ax = df.set_index('State code').plot(kind='bar', stacked=stack, fontsize=fontsize)
+    ax = df.set_index('State code').plot(kind='bar', stacked=stack, fontsize=fontsize, color=colors)
     ax.set_xticklabels(df['State code'], rotation='horizontal') 
 
     if legend_loc == 'right':
@@ -275,7 +277,11 @@ def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California"
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
         # Put a legend to the right of the current axis
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=fontsize/2)
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=fontsize*2)
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[::-1], labels[::-1], title='', loc=legend_loc, ncol=len(keys))
+    ax.set_ylim([0, 1.2])
 
     plt.xlabel("")
     plt.ylabel(ylabel)
@@ -467,10 +473,10 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     xmin=np.min(eval_df.values)
     ymax=np.max(eval_df.values)
 
-    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=5, label=scale['label'], zorder = -1, alpha =0.5)
-    plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=5, zorder = -1, alpha =0.5)
+    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, label=scale['label'], zorder = -1, alpha =0.5)
+    plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
 
-    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3)
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3, zorder=0)
     plt.xlabel(obj1 + " (Ratio to "+scale['label']+")", labelpad=10, fontsize=15)
     plt.ylabel(obj2 + " (Ratio to  "+scale['label']+")", labelpad=10, fontsize=15)
 
@@ -490,9 +496,9 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
             right_pred += coeff[i] * (right ** i)
             bet_pred += coeff[i] * (between ** i)
 
-        plt.plot(left, left_pred, linewidth=4, label="Estimated Pareto Frontier", color='blue', linestyle='dashed', alpha=0.5)
-        plt.plot(between, bet_pred, linewidth=4, color='blue', linestyle='dashed', alpha=0.2)
-        plt.plot(right, right_pred, linewidth=4, color='blue', linestyle='dashed', alpha=0.5)
+        plt.plot(left, left_pred, linewidth=5, label="Estimated Pareto Frontier", color='blue', linestyle='dashed', alpha=0.5)
+        plt.plot(between, bet_pred, linewidth=5, color='blue', linestyle='dashed', alpha=0.2)
+        plt.plot(right, right_pred, linewidth=5, color='blue', linestyle='dashed', alpha=0.5)
 
     for other in others:
         plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color=other['color'], label=other['label'], zorder = 100)
