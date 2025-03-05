@@ -1,3 +1,6 @@
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+
 from plot_util import *
 from data_load_util import *
 from projections_util import *
@@ -8,7 +11,8 @@ from tqdm import tqdm
 def plot_projections(projections:list[Projection], objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
 
     # Some default sizing and styling
-    plt.style.use("seaborn")
+    print(plt.style.available)
+    plt.style.use('seaborn-v0_8')
     font = {'family' : 'DejaVu Sans',
     'weight' : 'bold',
     'size'   : fontsize}
@@ -106,10 +110,105 @@ def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', obje
     plt.show()
 
 
+#Projections.objective_projections = {objective name: objective projection}
+#objective projection = {panel count: value}
+#TODO: make these new charts compatible
+
+#ratio comparison projection
+def plot_comparison_ratio(base_projection:Projection, comparison_projection:Projection, base_key, comparison_key, objectives = ['Carbon Offset', 'Energy Potential', 'Racial Equity', 'Income Equity'], interval = 1, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"]):
+    
+    # plt.style.use("seaborn")
+    font = {'family' : 'DejaVu Sans',
+    'weight' : 'bold',
+    'size'   : fontsize}
+
+    matplotlib.rc('font', **font)
+
+    #calculate ratios between the base and the comparison
+    ratios = pd.DataFrame()
+    comp = pd.DataFrame(comparison_projection.objective_projections)
+    base = pd.DataFrame(base_projection.objective_projections)
+
+    for objective in objectives:
+        ratios[objective] = comp[objective]/base[objective]
+
+        print(objective, ratios[objective][0])
+    
+    ratios = ratios.dropna() #remove all NAN items
+
+    #plot ratios
+    # x = np.arange(math.ceil(len(ratios[objectives[0]]) / interval)) * interval
+    for key, fmt in zip(objectives, fmts):
+        #use x values from the ratios list
+        plt.plot(ratios.index.tolist()[0::interval], np.array(ratios[key])[0::interval], fmt, label=key, linewidth=3, markersize=8, alpha=0.9)
+        plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
+
+    #show baseline
+    plt.hlines(1, 0, ratios.index.tolist()[-1], colors='black' , linestyles='dashed', linewidth=2, alpha=0.5)
+
+    # plt.ylim(0, 2) #set the range of the plots
+    plt.ylabel(f"Ratio to {base_key}", fontsize=fontsize, labelpad=20)
+    plt.legend(fontsize=fontsize/1.5)
+    plt.title(f"Performance of {comparison_key}")
+    # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
+    #       ncol=1, shadow=True, fontsize=fontsize/1.4)
+    plt.tight_layout()
+    plt.show()
+
+
+#bar graph ver of ratio comparison
+def plot_bar_comparison_ratio(all_metric_projections, base_key, method_keys = ["NEAT_model"], method_names = ['Lexicase'], metric_labels = ['carbon_offset', 'energy_generation', 'racial_equity', 'income_equity']):
+    #get the last value for all objectives for all methods
+    results = [] #ex: array of [lexicase results, tournament results etc.]
+    for key in method_keys:
+        result = [] #array of [CO, EG, RE, IE]
+        for projection in all_metric_projections:
+            result.append(projection[key].tolist()[-1] / projection[base_key].tolist()[-1]) #get the ratio to the base key
+        results.append(result)
+
+    # Configuration for the bar graph
+    x = np.arange(len(metric_labels))  # X positions for the groups
+    width = 0.1  # Width of each bar
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Add bars for each method
+    for i, method in enumerate(method_names):
+        ax.bar(x + i * width, results[i], width, label=method)
+    
+    #show baseline
+    plt.axhline(y=1, color='b', linestyle='--', linewidth=1) 
+
+    # Add labels, title, and legend
+    ax.set_xlabel('Objectives')
+    ax.set_ylabel('Fitness')
+    ax.set_title('Fitness of Selection Methods for all Objectives')
+    ax.set_xticks(x + width)
+    ax.set_xticklabels(metric_labels)
+    ax.legend()
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == '__main__':
+    print("running")
     combined_df = make_dataset(remove_outliers=True)
+    state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
+    data_manager = DataManager(combined_df, state_df)
+
     max_num_added = 2000000
     projection_list = create_projections(combined_df, n_panels=max_num_added, save='Projection_Data/2mill_No_lex.pkl', load='Projection_Data/2mill_No_lex.pkl')
     panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
 
-    plot_projections(projections=projection_list, panel_estimations=panel_estimations_by_year)
+
+    #test a neat model
+    print("creating NEAT")
+    with open("Neat/models/01-09-25/NEAT_model2M_lexicase.pkl", 'rb') as f:
+        network = pickle.load(f)
+    projection_list2 = [create_neat_proj(data_manager, max_num_added, NeatModel(network), create_paper_objectives(), save="Projection_Data/2mill_best.pkl", load="Projection_Data/2mill_best.pkl")]
+    # plot_projections(projections=projection_list + projection_list2, panel_estimations=panel_estimations_by_year)
+
+    plot_comparison_ratio(projection_list[0], projection_list2[0], "base","comp", interval=25)
