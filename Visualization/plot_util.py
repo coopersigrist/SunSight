@@ -473,7 +473,8 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     xmin=np.min(eval_df.values)
     ymax=np.max(eval_df.values)
 
-    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, label=scale['label'], zorder = -1, alpha =0.5)
+    # plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, label=scale['label'], zorder = -1, alpha =0.5)
+    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
     plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
 
     plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3, zorder=0)
@@ -501,7 +502,7 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
         plt.plot(right, right_pred, linewidth=5, color='blue', linestyle='dashed', alpha=0.5)
 
     for other in others:
-        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color=other['color'], label=other['label'], zorder = 100)
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s*1.3, marker='X', color=other['color'], label=other['label'], zorder = 100, edgecolors='black')
 
     plt.legend()
     plt.tight_layout()
