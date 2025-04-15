@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -8,7 +9,6 @@ from matplotlib.patches import Patch
 import pgeocode
 import plotly.graph_objects as go
 from decimal import Decimal
-import seaborn as sns
 import folium as fl
 import io
 import os

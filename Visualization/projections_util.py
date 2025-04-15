@@ -1,9 +1,30 @@
+
+from data_manager import DataManager
 from data_load_util import *
 from tqdm import tqdm
 import matplotlib
 import pickle
 import os
 
+
+class NeatModel():
+    def __init__(self, model):
+        self.model = model #this model should be a neat-python model
+    
+    '''run the NEAT model given a DataManager as input
+    Returns a dictionary with zip codes and scores
+    {zip code: score}
+    '''
+    def run_network(self, data_manager: DataManager):
+        zip_outputs = {}
+        #TODO:FIX
+        indices = range(data_manager.num_zips)
+
+        for i in indices:
+            score = self.model.activate(data_manager.network_inputs(i))
+            zip_code = data_manager.combined_df.loc[i, 'region_name'] #find zip code from index
+            zip_outputs[zip_code] = score
+        return zip_outputs
 
 # Projection Object that will be used to store the projections of different solar siting strategies
 class Projection():
@@ -92,7 +113,7 @@ def calc_equity(combined_df, placed_panels, type="racial", by='panel_utilization
 
     return 2 - np.abs(high_avg-low_avg)/avg
 
-# Calculates amount of a given metric (per panle metric) gained by placing panels according to picked starting with combined_df
+# Calculates amount of a given metric (per panel metric) gained by placing panels according to picked starting with combined_df
 def calc_obj_by_picked(combined_df, placed_panels, metric='carbon_offset_metric_tons_per_panel', cull=True):
 
     if cull:
@@ -126,9 +147,9 @@ def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list
 
         # Shortcut for calcing progressively increasing projections quickly, doesnt work for equity
         if obj.name not in ['Racial Equity', 'Income Equity']:
-            objective_projections[obj.name] = { n:n*obj_ratio for n in range(n_panels+1)}
+            objective_projections[obj.name] = { n:int(n*obj_ratio) for n in range(n_panels+1)}
         else:
-            objective_projections[obj.name] = { n:obj_val for n in range(n_panels+1)}
+            objective_projections[obj.name] = { n:int(obj_val) for n in range(n_panels+1)}
 
     sq_projection = Projection(objective_projections, panel_placements, name="Staus Quo")
 
@@ -250,6 +271,28 @@ def create_weighted_proj(combined_df, n_panels=1000, attributes=['carbon_offset_
 
     return create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='weighted_combo_metric', objectives=objectives)
 
+# Creates the projection of a policy where the value function is determined by a NEAT model
+def create_neat_proj(data_manager, n_panels=1000, model:NeatModel = None, objectives:list[Objective]=[], save=None, load=None):
+    #load
+    if load is not None and os.path.exists(load):
+        print("Loading from previous calculations...")
+        with open(load, 'rb') as dir:
+            return pickle.load(dir)
+    
+    new_df = data_manager.combined_df
+    new_df['value'] = 0
+    zip_values = model.run_network(data_manager)
+    new_df['value'] = new_df['region_name'].map(zip_values)
+
+    proj = create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="NEAT Model")
+    #save
+    if save is not None:
+        with open(save, 'wb') as dir:
+            pickle.dump(proj, dir, pickle.HIGHEST_PROTOCOL)
+
+    return proj
+
+
 # Creates a projection of carbon offset for adding solar panels to random zipcodes
 # The zipcode is randomly chosen for each panel, up to n panels
 ''' TODO REFACTOR (low prio)'''
@@ -268,6 +311,7 @@ def create_random_proj(combined_df, n_panels=1000, metric='carbon_offset_metric_
 def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='paper', save=None, load=None) -> list[Projection]:
 
     if load is not None and os.path.exists(load):
+        print("Loading from previous calculations...")
         with open(load, 'rb') as dir:
             return pickle.load(dir)
 
@@ -293,7 +337,7 @@ def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='
 
 
     if save is not None:
-        with open(load, 'wb') as dir:
+        with open(save, 'wb') as dir:
             pickle.dump(proj, dir, pickle.HIGHEST_PROTOCOL)
 
     return proj
