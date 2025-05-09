@@ -217,9 +217,9 @@ def stats_for_states(df, key):
     return stats
 
 # Creates a csv of all zip codes which are in each dataset
-def get_clean_zips():
-    if exists("Clean_Data/zips.csv"):
-        zips = pd.read_csv('Clean_Data/zips.csv',dtype=str) 
+def get_clean_zips(load_dir="Clean_Data/zips.csv"):
+    if exists(load_dir):
+        zips = pd.read_csv(load_dir,dtype=str) 
         zips = zips.drop_duplicates(subset=['zip'], keep='first')
         return zips['zip'].values
     else:
@@ -234,7 +234,7 @@ def get_clean_zips():
         zip_df['zip'] = zips
 
         # Saves zips
-        zip_df.to_csv("Clean_Data/zips.csv", index=False)
+        zip_df.to_csv(load_dir, index=False)
 
         return zips
 
@@ -275,7 +275,7 @@ def make_state_dataset(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Foss
         vals = stats_for_states(df=df, key=key)['mean'].values
         stats_df[key] = vals
 
-    combined_state_df = pd.concat([energy_df, election_df, stats_df], axis=1)
+    combined_state_df = pd.concat([energy_df, election_df, stats_df, incentives_df], axis=1)
     if load_dir is not None:
         combined_state_df.to_csv(load_dir, index=False)
 
@@ -338,12 +338,11 @@ def make_zip_dataset(remove_outliers=True, load_dir='Clean_Data/data_by_zip.csv'
 
 def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_prefix=''):
 
-    zip_codes = get_clean_zips()
+    zip_codes = get_clean_zips(load_dir=load_dir_prefix+"Clean_Data/zips.csv")
 
     nomi = pgeocode.Nominatim('us')
 
     # Positional dat for plotting maps
-    print("Creating Lat and Long for each zip")
     edf = pd.DataFrame()
     edf['Latitude'] = (nomi.query_postal_code(zip_codes).latitude)
     edf['Longitude'] = (nomi.query_postal_code(zip_codes).longitude)

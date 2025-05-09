@@ -289,7 +289,7 @@ def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California"
     plt.title(title, fontsize=fontsize)
     plt.show()
 
-def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None):
+def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix=""):
     '''
     Plots a map of the US states with color intensity dependent on the attribute given by key
     '''
@@ -310,7 +310,8 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
 
     img_data = m._to_png(5)
     img = Image.open(io.BytesIO(img_data))
-    img.save("Maps/" + key + '_by_state.png')
+    if save_dir_prefix is not None:
+        img.save(save_dir_prefix + "Maps/" + key + '_by_state.png')
     img.show()
 
     # m.show_in_browser()

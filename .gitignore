@@ -3,8 +3,8 @@ __pychache__/
 Data/__pycache__/
 Models/__pycache__/
 Paper_plots/__pycache__/
-/Simulation/__pycache__/
-/Simulation/Projection_results/
-/Simulation/Projection_analysis/
+Simulation/__pycache__/
+Simulation/Projection_results/
+Simulation/Projection_analysis/
 Visualization/__pycache__/
-/Models/Linear_Weighted/Linear_Weighted_Results/
+Models/Linear_Weighted/Linear_Weighted_Results/
