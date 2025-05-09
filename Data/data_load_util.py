@@ -338,18 +338,31 @@ def make_zip_dataset(remove_outliers=True, load_dir='Clean_Data/data_by_zip.csv'
 
 def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_prefix=''):
 
+    zip_codes = get_clean_zips()
+
+    nomi = pgeocode.Nominatim('us')
+
+    # Positional dat for plotting maps
+    print("Creating Lat and Long for each zip")
+    edf = pd.DataFrame()
+    edf['Latitude'] = (nomi.query_postal_code(zip_codes).latitude)
+    edf['Longitude'] = (nomi.query_postal_code(zip_codes).longitude)
+    edf['zip_code'] = zip_codes
+
     # Create the Zip-level data
     zip_data = make_zip_dataset(remove_outliers=remove_outliers, save=save, load_dir=load_dir_prefix+'Clean_Data/data_by_zip.csv')
 
     if granularity == 'zip':
-        return  zip_data
+        return  zip_data, edf
     
     state_data = make_state_dataset(zip_data,load_dir=load_dir_prefix+'Clean_Data/data_by_state.csv')
     if granularity == 'state':
         return state_data
     
     if granularity == 'both':
-        return zip_data, state_data
+        return zip_data, state_data, edf
+    
+
 
 
 if __name__ == '__main__':
