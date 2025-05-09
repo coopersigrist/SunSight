@@ -1,1 +1,1 @@
-# Solar-Potential
+# SunSight

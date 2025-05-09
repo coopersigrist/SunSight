@@ -1,0 +1,51 @@
+State,"Net Upfront Cost (assuming $17,500 system @ $2.5 per W, federal tax credit)","Adjusted Payback Period (Years, under energy generation assumptions)",State-level Incentives,Numeric state-level upfront incentive,Notes
+AL,12250,22,No state-level incentive,0,"No net metering; exports not compensated, property tax exemption"
+AK,12250,8,No state-level incentive,0,Net metering; full retail credit
+AZ,11250,10,"$1,000 state personal tax credit",1000,Net billing; export credit at ~7-8/kWh
+AR,12250,22,No state-level incentive,0,Net metering; full retail credit
+CA,12250,8,No state-level incentive,0,Net billing (NEM 3.0); exports at avoided cost (~8/kWh)
+CO,11250,8,No state-level incentive,0,Net metering; full retail credit
+CT,12250,6,No state-level incentive,0,Net metering; full retail credit
+DE,7350,6,No state-level incentive,0,Net metering; full retail credit
+FL,12250,9,No state-level incentive,0,Net metering; full retail credit
+GA,12250,10,No state-level incentive,0,No net metering; exports compensated at avoided cost (~3-4/kWh)
+HI,7250,5,"35% state tax credit (up to $5,000)",5000,No net metering; exports not compensated
+ID,12250,20,No state-level incentive,0,"Net billing; exports credited at new tariff (~6/kWh), 40% of cost of system can be deducted from state income tax"
+IL,12250,10,No state-level incentive,0,Net metering capped; exports credited at supply rate (~50% retail)
+IN,12250,20,No state-level incentive,0,Net metering phased out; exports at ~wholesale (~4-5/kWh)
+IA,12250,13,No state-level incentive,0,Net metering; full retail credit
+KS,12250,10,No state-level incentive,0,Net metering; full retail credit
+KY,12250,22,No state-level incentive,0,Net metering with adjusted PSC-set credit (~retail)
+LA,12250,21,No state-level incentive,0,Net metering ended; exports at avoided cost (~3/kWh)
+ME,12250,7,No state-level incentive,0,Net metering; full retail credit
+MD,11250,8,No state-level incentive,0,Net metering; full retail credit
+MA,12250,6,"$1,000 state tax credit",1000,Net metering; full retail credit
+MI,12250,14,No state-level incentive,0,Net billing; export credit at ~50% of retail
+MN,12250,11,No state-level incentive,0,"Net metering or optional Value of Solar tariff, sales tax exemption"
+MS,12250,10,No state-level incentive,0,Net billing; avoided cost + adder (~3-5/kWh)
+MO,10500,11,No state-level incentive,0,Net metering; full retail credit
+MT,12250,14,No state-level incentive,0,Net metering; full retail credit
+NE,12250,13,No state-level incentive,0,"Net metering; full retail credit, upfront incentives for businesses"
+NV,12250,10,No state-level incentive,0,Net billing; export credit at ~75% of retail
+NH,12250,7,No state-level incentive,0,Net metering; full retail credit
+NJ,12250,8,No state-level incentive,0,Net metering; full retail credit
+NM,10500,8,"10% state tax credit (up to $6,000)","1,750",Net metering; full retail credit
+NY,7875,4,"25% state tax credit (up to $5,000)",4375,Net metering (residential <750 kW); transitioning to VDER
+NC,10500,10,No state-level incentive,0,Net metering; TOU netting rules in effect
+ND,12250,24,No state-level incentive,0,Net billing; export credit at avoided cost
+OH,12250,11,No state-level incentive,0,"Net metering; full retail credit, some property tax exemptions"
+OK,12250,12,No state-level incentive,0,No net metering; voluntary utility programs only
+OR,11200,11,"Rebate of at least $0.20 per watt, up to 40% of net cost or $5,000, whichever less","1,400",Net metering; full retail credit
+PA,12250,9,No state-level incentive,0,Net metering; full retail credit
+RI,7250,3,Limited state-level incentives (application required),0,Net metering; full retail credit
+SC,7875,7,"25% state tax credit (up to $35,000)",4375,TOU net billing for new installs; legacy NEM
+SD,12250,23,No state-level incentive,0,"No net metering; exports not compensated, property tax exemption"
+TN,12250,25,No state-level incentive,0,"No net metering; TVA pays avoided cost, property tax exemption"
+TX,12250,16,No state-level incentive,0,"No state policy; REP-specific export rates, property tax exemption"
+UT,12250,13,No state-level incentive,0,Export credit tariff (~5-6/kWh); NEM phased out
+VT,12250,8,No state-level incentive,0,"Net metering; near-retail credit with adjustors, sales and property tax exemptions"
+VA,12250,10,No state-level incentive,0,Net metering; full retail credit
+WA,12250,16,No state-level incentive,0,"Net metering; full retail credit, sales tax exemption"
+WV,12250,10,No state-level incentive,0,Net metering ended; export credit at wholesale
+WI,12250,9,"Focus on Energy rebate, rural customers can receive additional $300",300,"Net metering; full retail credit, sales tax exemption"
+WY,12250,11,No state-level incentive,0,Net metering; full retail credit

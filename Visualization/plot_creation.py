@@ -1,5 +1,5 @@
-from plot_util import *
-from data_load_util import *
+from .plot_util import *
+from SunSight.Data.data_load_util import *
 
 import scipy.stats as sp
 
@@ -196,7 +196,9 @@ exemplar_states = ['Texas', 'California', 'Mississippi', 'Delaware', 'Massachuse
 # no_dc = state_df['State code'].isin(["DC", "HI"])
 
 # state_df_no_dc = state_df[~no_dc]
-
+state_df['prop_cost'] = state_df['net_upfront_cost']/ state_df['Median_income'] 
+plot_state_map(state_df, key='prop_cost', fill_color='Blues', legend_name="Net Upfront Cost")
+plot_state_map(state_df, key='net_upfront_cost', fill_color='Blues', legend_name="Net Upfront Cost")
 # plot_state_map(state_df, key='carbon_offset_metric_tons_per_panel', fill_color='Greens', legend_name="Carbon Offset Per Panel")
 # plot_state_map(state_df, key='Fossil_prop')
 # plot_state_map(state_df[no_dc], key='Democrat_prop')

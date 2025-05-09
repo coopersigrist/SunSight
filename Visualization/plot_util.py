@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -8,7 +9,6 @@ from matplotlib.patches import Patch
 import pgeocode
 import plotly.graph_objects as go
 from decimal import Decimal
-import seaborn as sns
 import folium as fl
 import io
 import os
@@ -127,13 +127,14 @@ def q_binning(vals, key, q=4, legible_label="Value"):
 def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins=[], masks=[], show=True, states=None, legend=True, fontsize=15, square=False):
     '''
     Inputs:
-        Cenus_df : DataFrame object of all saved census data
-        Solar_df : DataFrame object of all saved Proj Sunroof data
-        x : The x axis for the plot (will be a col of either census or solar)
+        combined_df : DataFrame object of all saved data (or a subset thereof), at a zip code level
+        x : The x axis for the plot (will be a col of combined_df)
         y : Ditto but for the y axis
         bins: A list of tuples with (key:str, range:tuple, label:str, color:str)
             - key wil denote which col we are binning on, range will determine the range that we will mask the data for
             - label will be a label for plotting, color will be the color for the scatter plot
+        
+        TODO Refactor and finish comment
     '''
 
     keys = combined_df.keys()
@@ -147,12 +148,12 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
             mask2 = (df[key] < high)
             corr, _ = scipy.stats.pearsonr(x[mask1][mask2], y[mask1][mask2])
             corrs.append(str(np.round(corr, 2)))
-            scatter_plot(x=x[mask1][mask2], y=y[mask1][mask2], fit=fit, show=False, label=label, color=color, label_fit=False,fontsize=fontsize)
+            scatter_plot(x=x[mask1][mask2], y=y[mask1][mask2], fit=fit, show=False, label=label, color=color, label_fit=False, fontsize=fontsize)
         else:
             print("Key error in Complex Scatter on key:", key, " -- not a valid key for census or solar, skipping")
 
     for (mask, label, color) in masks:
-        scatter_plot(x=x[mask], y=y[mask], fit=fit, show=False, label=label, color=color, label_fit=False,fontsize=fontsize)
+        scatter_plot(x=x[mask], y=y[mask], fit=fit, show=False, label=label, color=color, label_fit=False, fontsize=fontsize)
 
     if square:
         # plt.gca().set_aspect('equal')
@@ -289,7 +290,9 @@ def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California"
     plt.show()
 
 def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None):
-
+    '''
+    Plots a map of the US states with color intensity dependent on the attribute given by key
+    '''
     url = (
         "https://raw.githubusercontent.com/python-visualization/folium/main/examples/data"
     )
@@ -473,7 +476,8 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     xmin=np.min(eval_df.values)
     ymax=np.max(eval_df.values)
 
-    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, label=scale['label'], zorder = -1, alpha =0.5)
+    # plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, label=scale['label'], zorder = -1, alpha =0.5)
+    plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
     plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
 
     plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3, zorder=0)
@@ -501,7 +505,7 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
         plt.plot(right, right_pred, linewidth=5, color='blue', linestyle='dashed', alpha=0.5)
 
     for other in others:
-        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s, marker='X', color=other['color'], label=other['label'], zorder = 100)
+        plt.scatter(other[obj1]/scale[obj1], other[obj2]/scale[obj2], s=s*1.3, marker='X', color=other['color'], label=other['label'], zorder = 100, edgecolors='black')
 
     plt.legend()
     plt.tight_layout()
