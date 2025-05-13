@@ -5,6 +5,8 @@ from tqdm import tqdm
 import matplotlib
 import pickle
 import os
+import pands as pd
+import numpy as np
 
 
 class NeatModel():
@@ -105,13 +107,6 @@ def calc_equity(combined_df, placed_panels, type="racial", by='panel_utilization
     low_avg = np.mean(combined_df[combined_df[metric] < metric_median]['panel_utilization'].values)
     avg = np.mean(combined_df['panel_utilization'].values)
 
-    # if metric in ['Median_income', 'black_prop']:
-    #     print('------------' + metric + '-------------')
-    #     print(high_avg)
-    #     print(low_avg)
-    #     print(avg)
-    #     print(2 - np.abs(high_avg-low_avg)/avg)
-
     return 2 - np.abs(high_avg-low_avg)/avg
 
 # Calculates amount of a given metric (per panel metric) gained by placing panels according to picked starting with combined_df
@@ -155,6 +150,10 @@ def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list
     sq_projection = Projection(objective_projections, panel_placements, name="Staus Quo")
 
     return sq_projection
+
+# Creates a projection based on the ongoing installation data from SEIA
+def create_future_estimate_projection(combined_df, n_panels:int=1000, objectives:list[Objective]=[]):
+
 
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
 # Returns the Carbon offset for each amount of panels added

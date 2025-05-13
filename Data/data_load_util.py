@@ -24,11 +24,12 @@ def load_solar_data(zip_codes=None, load_dir="Clean_Data/sunroof_by_zip.csv", sa
 
     # Remove duplicates and unused data features
     df = df.drop_duplicates(subset=['region_name'], keep='first')
+    df = df.sort_values('region_name')
     df = df[['region_name','state_name','yearly_sunlight_kwh_kw_threshold_avg','yearly_sunlight_kwh_total','existing_installs_count','percent_covered','count_qualified', 'number_of_panels_total']]
 
     # We have to scale by "percent covered" as that is the percent of the zipcode area that has data, but census dat attempts to cover 100% of population
-    df['count_qualified'] *= (100/ df['percent_covered']) 
-    df['existing_installs_count'] *= (100/ df['percent_covered']) 
+    # df['count_qualified'] *= (100/ df['percent_covered']) 
+    # df['existing_installs_count'] *= (100/ df['percent_covered']) 
 
     df['estimated_max_panels'] = df['yearly_sunlight_kwh_total'] / df['yearly_sunlight_kwh_kw_threshold_avg']
 
@@ -179,13 +180,13 @@ def stats_by_state(df, key, state):
     '''
 
     df = df.dropna(axis=0)
+
     df = df[df['state_name'] == state] 
     # df = df[df[key].notna()]
     vals = df[key].values 
-    if key in ['solar_utilization', 'carbon_offset_metric_tons','existing_install_count']:
-        vals /= df['Total_Population']
 
-    stats = {'state_name' : [state], 'mean' : [np.mean(vals)], 'std': [np.std(vals)], 'median' : [np.median(vals)]}
+    stats = {'state_name' : [state], 'mean' : [np.mean(vals)], 'std': [np.std(vals)], 'median' : [np.median(vals)], 'sum': [np.sum(vals)]}
+
 
     return pd.DataFrame(stats)
 
@@ -202,9 +203,8 @@ def stats_for_states(df, key):
     'Canóvanas', 'Corozal', 'San Juan', 'Toa Baja', 'Toa Alta', 'Bayamón', 'Cataño',
     'Guaynabo', 'Trujillo Alto', 'Carolina','District of Columbia'])
 
-    # GROSS DUMB code to make rows align for the combination data by state df
+    # Remove Puerto Rico Data as well as Washington DC
     states = df[~pr_mask]['state_name'].unique()
-    print(states)
     states = np.sort(states)
 
     stats = stats_by_state(df, key, states[0])
@@ -261,10 +261,14 @@ def load_data(dir='Clean_Data/'):
 
     return zip_codes, solar_df, census_df, grid_df, edf
 
-def make_state_dataset(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Wind','Other Renewables','Other Fossil','Total Generation'], stats_keys=["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line","black_population","white_population","asian_population","native_population", "black_prop","white_prop", "asian_prop","yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", 'carbon_offset_kg_per_panel','carbon_offset_kg'], load_dir="Clean_Data/data_by_state.csv"):
+def make_state_dataset(df, energy_keys=None, stats_keys=None, load_dir="Clean_Data/data_by_state.csv", agg='mean'):
     
     if exists(load_dir):
         return pd.read_csv(load_dir)
+    
+    if energy_keys == None:
+        energy_keys = ['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Wind','Other Renewables','Other Fossil','Total Generation']
+        stats_keys= ["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line","black_population","white_population","asian_population","native_population", "black_prop","white_prop", "asian_prop","yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", 'carbon_offset_kg_per_panel','carbon_offset_kg']
     
     election_df = load_election_data().drop('state', axis=1)
     energy_df = load_state_energy_dat(keys=energy_keys, total=False)
@@ -272,10 +276,14 @@ def make_state_dataset(df, energy_keys=['Clean', 'Bioenergy', 'Coal','Gas','Foss
     stats_df = pd.DataFrame()
 
     for key in stats_keys:
-        vals = stats_for_states(df=df, key=key)['mean'].values
+        # Returns just the means over the ZIPs of a state, change mean to std or median to change
+        vals = stats_for_states(df=df.drop(['Latitude', 'Longitude'], axis=1), key=key)[agg].values
         stats_df[key] = vals
 
     combined_state_df = pd.concat([energy_df, election_df, stats_df, incentives_df], axis=1)
+
+    combined_state_df['estimated_install_count'] = combined_state_df['Solar'] * 1000 / combined_state_df['yearly_sunlight_kwh_kw_threshold_avg']
+
     if load_dir is not None:
         combined_state_df.to_csv(load_dir, index=False)
 
@@ -365,4 +373,6 @@ def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_p
 
 
 if __name__ == '__main__':
-    make_dataset(granularity='both', remove_outliers=False, save=True)
+    zips_df, state_df, pos_df = make_dataset(granularity='both', remove_outliers=False, save=True)
+    sum_df = make_state_dataset(zips_df, None, None, "Clean_data/data_by_state_sum.csv", agg="sum")
+    print(state_df['estimated_install_count'] - sum_df['existing_installs_count'])
