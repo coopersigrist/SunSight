@@ -1,33 +1,15 @@
 
-from data_manager import DataManager
-from data_load_util import *
+# from data_manager import DataManager
+# from data_load_util import *
 from tqdm import tqdm
 import matplotlib
 import pickle
 import os
 import pands as pd
 import numpy as np
+import math
+from os import exists
 
-
-class NeatModel():
-    # TODO Move to neat Util
-    def __init__(self, model):
-        self.model = model #this model should be a neat-python model
-    
-    '''run the NEAT model given a DataManager as input
-    Returns a dictionary with zip codes and scores
-    {zip code: score}
-    '''
-    def run_network(self, data_manager: DataManager):
-        zip_outputs = {}
-        #TODO:FIX
-        indices = range(data_manager.num_zips)
-
-        for i in indices:
-            score = self.model.activate(data_manager.network_inputs(i))
-            zip_code = data_manager.combined_df.loc[i, 'region_name'] #find zip code from index
-            zip_outputs[zip_code] = score
-        return zip_outputs
 
 # Projection Object that will be used to store the projections of different solar siting strategies
 class Projection():
@@ -151,8 +133,11 @@ def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list
 
     return sq_projection
 
-# Creates a projection based on the ongoing installation data from SEIA
-def create_future_estimate_projection(combined_df, n_panels:int=1000, objectives:list[Objective]=[]):
+# Creates a projection based on the ongoing installation data from SEIA TODO
+def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objectives:list[Objective]=[]):
+    state_prop = state_df['added_cap_prop']
+    zip_prop = zip_df['existing_installs_count'] / np.sum(zip_df['existing_installs_count'])
+
 
 
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
@@ -272,7 +257,7 @@ def create_weighted_proj(combined_df, n_panels=1000, attributes=['carbon_offset_
     return create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='weighted_combo_metric', objectives=objectives)
 
 # Creates the projection of a policy where the value function is determined by a NEAT model
-def create_neat_proj(data_manager, n_panels=1000, model:NeatModel = None, objectives:list[Objective]=[], save=None, load=None):
+def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[Objective]=[], save=None, load=None):
     #load
     if load is not None and os.path.exists(load):
         print("Loading from previous calculations...")
@@ -387,15 +372,15 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
 
     return scores_df
 
-if __name__ == '__main__':
-    # TEST
-    combined_df = make_dataset(remove_outliers=True)
-    objectives = create_paper_objectives()
-    n_panels = 10000
-    test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
-                                      attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.array([2,2,-2,2]), n_samples=5, 
-                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
-                                      load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+# if __name__ == '__main__':
+#     # TEST
+#     combined_df = make_dataset(remove_outliers=True)
+#     objectives = create_paper_objectives()
+#     n_panels = 10000
+#     test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
+#                                       attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
+#                                       objectives=objectives, max_weights=np.array([2,2,-2,2]), n_samples=5, 
+#                                       save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
+#                                       load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
 
-    print(test)
+#     print(test)

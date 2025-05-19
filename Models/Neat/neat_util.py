@@ -13,6 +13,26 @@ from tqdm import tqdm
 from Neat.saving_util import *
 
 
+class NeatModel():
+    # TODO Move to neat Util
+    def __init__(self, model):
+        self.model = model #this model should be a neat-python model
+    
+    '''run the NEAT model given a DataManager as input
+    Returns a dictionary with zip codes and scores
+    {zip code: score}
+    '''
+    def run_network(self, data_manager: DataManager):
+        zip_outputs = {}
+        #TODO:FIX
+        indices = range(data_manager.num_zips)
+
+        for i in indices:
+            score = self.model.activate(data_manager.network_inputs(i))
+            zip_code = data_manager.combined_df.loc[i, 'region_name'] #find zip code from index
+            zip_outputs[zip_code] = score
+        return zip_outputs
+
 class Evaluation():
     '''
     Genome Evaluation schemes like lexicase and weighted sum; works in tandem with Reproduction schemes
