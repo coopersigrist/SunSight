@@ -37,5 +37,6 @@ comp_df['prop_cap_added'] = comp_df['Residential_added_cap'] / np.sum(comp_df['R
 
 comp_df.to_csv('jan_24_25_by_state.csv', index=False)
 
-
-
+print("total small-scale solar capacity in Jan 2024:", round(np.sum(comp_df['Residential_cap_24']),1), "(estimated panels:", str(round(np.sum(comp_df['Residential_cap_24'])*4000,0), ")")
+print("total small-scale solar capacity in Jan 2025:", round(np.sum(comp_df['Residential_cap_25']),1), "(estimated panels:", round(np.sum(comp_df['Residential_cap_25'])*4000,0), ")")
+print("total small-scale solar capacity added in 2024:", np.sum(comp_df['Residential_cap_25']) - np.sum(comp_df['Residential_cap_24']), "(estimated panels:", (np.sum(comp_df['Residential_cap_25']) - np.sum(comp_df['Residential_cap_24']))*4000, ")")
