@@ -5,10 +5,10 @@ from tqdm import tqdm
 import matplotlib
 import pickle
 import os
-import pands as pd
+import pandas as pd
 import numpy as np
 import math
-from os import exists
+from os.path import exists
 
 
 # Projection Object that will be used to store the projections of different solar siting strategies
@@ -54,7 +54,7 @@ class Objective():
 
 # Creates a DF with updated values of existing installs, carbon offset potential(along with per panel), and realized potential
 # After a set of picks (zip codes with a panel placed in them)
-def updated_df_with_picks(zip_df:pd.Dataframe, placed_panels:dict, load=None, save=None):
+def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict, load=None, save=None):
 
     new_df = zip_df
     new_existing = np.array(new_df['existing_installs_count'])
@@ -111,7 +111,7 @@ def calc_obj_by_picked(zip_df, placed_panels, metric='carbon_offset_metric_tons_
 def init_objective_projs(zip_df, objectives:list[Objective]):
 
     placed_panel_init = {zip_code:0 for zip_code in zip_df['region_name']}
-    objectives_proj = {obj.name : {0: obj.calc(placed_panel_init)} for obj in objectives}
+    objectives_proj = {obj.name : {0: obj.calc(zip_df, placed_panel_init)} for obj in objectives}
 
     return objectives_proj
     
@@ -158,27 +158,27 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
 
         # Calculates relevant proportions for current 'state'
         state_zip_df = zip_df[zip_df['state_name'] == state]
-        state_prop_installs = float(state_df[['State'] == state]['prop_cap_added']) 
-        zip_prop_installs = state_zip_df['existing_intalls_count'] / np.sum(state_zip_df['existing_intalls_count'])
+        state_prop_installs = float(state_df[state_df['State'] == state]['prop_cap_added'].values)
+        zip_prop_installs = state_zip_df['existing_installs_count'] / np.sum(state_zip_df['existing_installs_count'])
 
         # Creates a list of tuples zip, estimated panel addition prop for current 'state'
         state_added_installs = zip(state_zip_df['region_name'], state_prop_installs * zip_prop_installs) 
-        placement_ratio.append(state_added_installs)
+        placement_ratio.update(dict(state_added_installs))
+
+        
     
     objective_projections = init_objective_projs(zip_df,objectives)
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
-    for interval in range(intervals - 1):
-        placed_panels = {zip_code:(prop*n_panels)/(interval + 1) for zip_code,prop in placement_ratio}
-
+    for interval in tqdm(range(intervals - 1)):
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels)/(interval + 1) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].append(((n_panels)/(interval + 1),obj.calc(zip_df, placed_panels)))
+            objective_projections[obj.name].update({(n_panels)/(interval + 1) : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
     return estimated_projection
     
-
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
 # Returns the Carbon offset for each amount of panels added
 def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
@@ -343,8 +343,9 @@ def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_pane
         objectives = create_paper_objectives()
 
     proj = []
-    print("Creating Continued Projection s")
+    print("Creating Status-Quo Projection")
     proj.append(create_status_quo_projection(zip_df, n_panels, objectives=objectives))
+    print("Creating Continued Projection")
     proj.append(create_future_estimate_projection(zip_df, state_df, n_panels, objectives=objectives))
     print("Creating Greedy Carbon Offset Projection")
     proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Aware"))
@@ -355,10 +356,10 @@ def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_pane
     print("Creating Greedy Low Median Income Projection")
     proj.append(create_greedy_projection(zip_df, n_panels, sort_by='Median_income', ascending=True, objectives=objectives, name="Income-Equity Aware"))
 
-    print("Creating Round Robin Projection")
-    proj.append(create_round_robin_projection(zip_df, projections=proj[1:5],
-                                                        n_panels=n_panels,
-                                                        objectives=objectives))
+    # print("Creating Round Robin Projection")
+    # proj.append(create_round_robin_projection(zip_df, projections=proj[1:5],
+    #                                                     n_panels=n_panels,
+    #                                                     objectives=objectives))
 
 
     if save is not None:
