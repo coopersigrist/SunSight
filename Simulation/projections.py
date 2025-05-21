@@ -1,9 +1,9 @@
-# import seaborn as sns
-# import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-from plot_util import *
-from SunSight.Data.data_load_util import *
-from SunSight.Simulation.projections_util import *
+from .Visualization.plot_util import *
+from .Data.data_load_util import *
+from projections_util import *
 from tqdm import tqdm
 
  

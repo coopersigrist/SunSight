@@ -1,2 +1,1 @@
-from projections_util import *
-from projections import *
+from .projections_util import *

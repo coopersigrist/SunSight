@@ -1,33 +1,15 @@
 
-from data_manager import DataManager
-from data_load_util import *
+# from data_manager import DataManager
+# from data_load_util import *
 from tqdm import tqdm
 import matplotlib
 import pickle
 import os
-import pands as pd
+import pandas as pd
 import numpy as np
+import math
+from os.path import exists
 
-
-class NeatModel():
-    # TODO Move to neat Util
-    def __init__(self, model):
-        self.model = model #this model should be a neat-python model
-    
-    '''run the NEAT model given a DataManager as input
-    Returns a dictionary with zip codes and scores
-    {zip code: score}
-    '''
-    def run_network(self, data_manager: DataManager):
-        zip_outputs = {}
-        #TODO:FIX
-        indices = range(data_manager.num_zips)
-
-        for i in indices:
-            score = self.model.activate(data_manager.network_inputs(i))
-            zip_code = data_manager.combined_df.loc[i, 'region_name'] #find zip code from index
-            zip_outputs[zip_code] = score
-        return zip_outputs
 
 # Projection Object that will be used to store the projections of different solar siting strategies
 class Projection():
@@ -66,15 +48,15 @@ class Objective():
         self.func = func
         self.func_kwargs = func_kwargs
 
-    def calc(self, combined_df, panel_placements):
+    def calc(self, zip_df, panel_placements):
         # Wraps the given func with specific inputs (i.e. racial vs Income equity both use the calc_equity func)
-        return self.func(combined_df, panel_placements, **self.func_kwargs)
+        return self.func(zip_df, panel_placements, **self.func_kwargs)
 
 # Creates a DF with updated values of existing installs, carbon offset potential(along with per panel), and realized potential
 # After a set of picks (zip codes with a panel placed in them)
-def updated_df_with_picks(combined_df, placed_panels, load=None, save=None):
+def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict, load=None, save=None):
 
-    new_df = combined_df
+    new_df = zip_df
     new_existing = np.array(new_df['existing_installs_count'])
 
     for zip in placed_panels:
@@ -90,7 +72,7 @@ def updated_df_with_picks(combined_df, placed_panels, load=None, save=None):
     return new_df
 
 #Calculates the equity of a given panel distribution, by default does racial equity over realized_potential
-def calc_equity(combined_df, placed_panels, type="racial", by='panel_utilization'):
+def calc_equity(zip_df, placed_panels, type="racial", by='panel_utilization'):
 
     if type == 'racial':
         metric = 'black_prop'
@@ -100,22 +82,22 @@ def calc_equity(combined_df, placed_panels, type="racial", by='panel_utilization
         print("Invalid type for equity calculation, defaulting to black_prop")
         metric = 'black_prop'
 
-    combined_df = updated_df_with_picks(combined_df, placed_panels)
+    zip_df = updated_df_with_picks(zip_df, placed_panels)
     
-    metric_median = np.median(combined_df[metric])
-    high_avg = np.mean(combined_df[combined_df[metric] > metric_median]['panel_utilization'].values)
-    low_avg = np.mean(combined_df[combined_df[metric] < metric_median]['panel_utilization'].values)
-    avg = np.mean(combined_df['panel_utilization'].values)
+    metric_median = np.median(zip_df[metric])
+    high_avg = np.mean(zip_df[zip_df[metric] > metric_median]['panel_utilization'].values)
+    low_avg = np.mean(zip_df[zip_df[metric] < metric_median]['panel_utilization'].values)
+    avg = np.mean(zip_df['panel_utilization'].values)
 
     return 2 - np.abs(high_avg-low_avg)/avg
 
-# Calculates amount of a given metric (per panel metric) gained by placing panels according to picked starting with combined_df
-def calc_obj_by_picked(combined_df, placed_panels, metric='carbon_offset_metric_tons_per_panel', cull=True):
+# Calculates amount of a given metric (per panel metric) gained by placing panels according to picked starting with zip_df
+def calc_obj_by_picked(zip_df, placed_panels, metric='carbon_offset_metric_tons_per_panel', cull=True):
 
     if cull:
-        culled_df = combined_df[combined_df['region_name'].isin(placed_panels)]
+        culled_df = zip_df[zip_df['region_name'].isin(placed_panels)]
     else:
-        culled_df = combined_df
+        culled_df = zip_df
     
     total = 0
     for _, row in culled_df.iterrows():
@@ -125,20 +107,29 @@ def calc_obj_by_picked(combined_df, placed_panels, metric='carbon_offset_metric_
     
     return total
 
+# initializes a projection dict for each objective from a list of objectives
+def init_objective_projs(zip_df, objectives:list[Objective]):
+
+    placed_panel_init = {zip_code:0 for zip_code in zip_df['region_name']}
+    objectives_proj = {obj.name : {0: obj.calc(zip_df, placed_panel_init)} for obj in objectives}
+
+    return objectives_proj
+    
+
 # Creates a projection of carbon offset if the current ratio of panel locations remain the same 
 # allowing partial placement of panels in zips and not accounting in the filling of zip codes.
-def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list[Objective]=[]):
+def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Objective]=[]):
 
-    total_panels = np.sum(combined_df['existing_installs_count'])
+    total_panels = np.sum(zip_df['existing_installs_count'])
     total_prop = n_panels / total_panels
-    # combined_df['panel_prop'] = combined_df['existing_installs_count'] / total_panels
+    # zip_df['panel_prop'] = zip_df['existing_installs_count'] / total_panels
 
     objective_projections = {obj.name : {} for obj in objectives}
 
-    panel_placements = {row['region_name']: row['existing_installs_count']*total_prop for _,row in combined_df.iterrows()}
+    panel_placements = {row['region_name']: row['existing_installs_count']*total_prop for _,row in zip_df.iterrows()}
 
     for obj in objectives:
-        obj_val = obj.calc(combined_df, panel_placements=panel_placements)
+        obj_val = obj.calc(zip_df, panel_placements=panel_placements)
         obj_ratio = obj_val/n_panels
 
         # Shortcut for calcing progressively increasing projections quickly, doesnt work for equity
@@ -151,16 +142,49 @@ def create_status_quo_projection(combined_df, n_panels:int=1000, objectives:list
 
     return sq_projection
 
-# Creates a projection based on the ongoing installation data from SEIA
-def create_future_estimate_projection(combined_df, n_panels:int=1000, objectives:list[Objective]=[]):
+# Creates a projection based on the ongoing installation data from SEIA TODO
+def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objectives:list[Objective]=[], intervals=10):
+    '''
+    This estimate of future installations first divides the potential added panels into proportions added to each State based on EIA data of added Capacity by State (see Data/EIA/details.md)
+    Next the potential added panels are proportioned out further inside the states based on the existing install counts from project sunroof (see Data/Sunroof/details.md) 
 
+    
+    '''
 
+    # Overall ratio of the panels added to each ZIP
+    placement_ratio = {}
+
+    for state in state_df['State']:
+
+        # Calculates relevant proportions for current 'state'
+        state_zip_df = zip_df[zip_df['state_name'] == state]
+        state_prop_installs = float(state_df[state_df['State'] == state]['prop_cap_added'].values)
+        zip_prop_installs = state_zip_df['existing_installs_count'] / np.sum(state_zip_df['existing_installs_count'])
+
+        # Creates a list of tuples zip, estimated panel addition prop for current 'state'
+        state_added_installs = zip(state_zip_df['region_name'], state_prop_installs * zip_prop_installs) 
+        placement_ratio.update(dict(state_added_installs))
+
+        
+    
+    objective_projections = init_objective_projs(zip_df,objectives)
+    
+    # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
+    for interval in tqdm(range(intervals - 1)):
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels)/(interval + 1) for zip_code in placement_ratio}
+        for obj in objectives:
+            objective_projections[obj.name].update({(n_panels)/(interval + 1) : obj.calc(zip_df, placed_panels)})
+    
+    estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
+
+    return estimated_projection
+    
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
 # Returns the Carbon offset for each amount of panels added
-def create_greedy_projection(combined_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
+def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
     
-    # Sorts the combined DF by a given value (must be a col in combined_df)
-    sorted_combined_df = combined_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
+    # Sorts the combined DF by a given value (must be a col in zip_df)
+    sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
 
     # Initialize the projections dictionary
     projections = dict()
@@ -176,8 +200,8 @@ def create_greedy_projection(combined_df, n_panels=1000, sort_by='carbon_offset_
     while (i < n_panels):
 
         # calculates the amount that can be added to the chosen ZIP -- can only add up to n-i so only n panels are placed
-        amount_to_add = min(n_panels-i, sorted_combined_df['count_qualified'][greedy_best_not_filled_index])
-        zip = sorted_combined_df['region_name'][greedy_best_not_filled_index]
+        amount_to_add = min(n_panels-i, sorted_zip_df['count_qualified'][greedy_best_not_filled_index])
+        zip = sorted_zip_df['region_name'][greedy_best_not_filled_index]
         
         # Updates our counter for check if we passed n
         i += amount_to_add
@@ -186,9 +210,9 @@ def create_greedy_projection(combined_df, n_panels=1000, sort_by='carbon_offset_
         panel_placements[zip] = amount_to_add
 
         # Calculates the value of each objective after placing all possible panels in the ZIP
-        # Each objective function must take the combined_df and the picked dict only
+        # Each objective function must take the zip_df and the picked dict only
         for objective in objectives:
-            projections[objective.name][i] = objective.calc(combined_df, panel_placements)
+            projections[objective.name][i] = objective.calc(zip_df, panel_placements)
         
         greedy_best_not_filled_index += 1
 
@@ -217,7 +241,7 @@ def get_zips_of_first_nth_panels(n_panels:int, panel_placements:dict) -> dict:
     raise ValueError("Tried to get zip of panel number "+ str(n_panels) + " but there were not that many placed panels in the given dict") 
 
 # Makes a round robin projection (without placements) for a single objective 
-def make_rr_proj_from_projs(combined_df:pd.DataFrame, panel_placements:dict, objectives:list[Objective]) -> dict:
+def make_rr_proj_from_projs(zip_df:pd.DataFrame, panel_placements:dict, objectives:list[Objective]) -> dict:
 
     # setup
     rr_projection = {obj.name : dict() for obj in objectives}
@@ -230,12 +254,12 @@ def make_rr_proj_from_projs(combined_df:pd.DataFrame, panel_placements:dict, obj
 
         # updates each rr projection (key'd by obj.name) with a #panels : objective score after that many panels
         for obj in objectives:
-            rr_projection[obj.name].update({panel_total : obj.calc(combined_df, counted_placements)})
+            rr_projection[obj.name].update({panel_total : obj.calc(zip_df, counted_placements)})
 
     return rr_projection
 
 # Creates a projection which decides each placement alternating between different policies
-def create_round_robin_projection(combined_df, n_panels=1000, projections:list[Projection]=[], objectives:list[Objective]=[]):
+def create_round_robin_projection(zip_df, n_panels=1000, projections:list[Projection]=[], objectives:list[Objective]=[]):
     # Creates a Projection object via the round robin startegy over a give list of projections
     panel_placements = {}
     for i in range(len(projections)):
@@ -250,7 +274,7 @@ def create_round_robin_projection(combined_df, n_panels=1000, projections:list[P
                 panel_placements[zip] = partial_panel_placement[zip]
 
     # Creates the actual projection for each objective
-    objective_projections = make_rr_proj_from_projs(combined_df, panel_placements, objectives)
+    objective_projections = make_rr_proj_from_projs(zip_df, panel_placements, objectives)
     
     rr_projection = Projection(objective_projections, panel_placements, name="Round Robin")
 
@@ -258,33 +282,33 @@ def create_round_robin_projection(combined_df, n_panels=1000, projections:list[P
 
 # Creates the projection of a policy which weighs multiple different factors (objectives)
 # and greedily chooses zips based on the weighted total of proportions to national avg. 
-def create_weighted_proj(combined_df, n_panels=1000, attributes=['carbon_offset_metric_tons_per_panel'], weights=[1], objectives:list[Objective]=[], scale='normalize'):
+def create_weighted_proj(zip_df, n_panels=1000, attributes=['carbon_offset_metric_tons_per_panel'], weights=[1], objectives:list[Objective]=[], scale='normalize'):
 
-    new_df = combined_df
-    new_df['weighted_combo_metric'] = combined_df[attributes[0]] * 0
+    new_df = zip_df
+    new_df['weighted_combo_metric'] = zip_df[attributes[0]] * 0
 
     for weight, obj in zip(weights,attributes):
         if scale == 'avg':
-            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (combined_df[obj] / np.mean(combined_df[obj])) * weight
+            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + (zip_df[obj] / np.mean(zip_df[obj])) * weight
         else:
-            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + ((combined_df[obj] - np.min(combined_df[obj])) / (np.max(combined_df[obj]) - np.min(combined_df[obj]))) * weight
+            new_df['weighted_combo_metric'] = new_df['weighted_combo_metric'] + ((zip_df[obj] - np.min(zip_df[obj])) / (np.max(zip_df[obj]) - np.min(zip_df[obj]))) * weight
 
-    return create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='weighted_combo_metric', objectives=objectives)
+    return create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='weighted_combo_metric', objectives=objectives)
 
 # Creates the projection of a policy where the value function is determined by a NEAT model
-def create_neat_proj(data_manager, n_panels=1000, model:NeatModel = None, objectives:list[Objective]=[], save=None, load=None):
+def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[Objective]=[], save=None, load=None):
     #load
     if load is not None and os.path.exists(load):
         print("Loading from previous calculations...")
         with open(load, 'rb') as dir:
             return pickle.load(dir)
     
-    new_df = data_manager.combined_df
+    new_df = data_manager.zip_df
     new_df['value'] = 0
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
 
-    proj = create_greedy_projection(combined_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="NEAT Model")
+    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="NEAT Model")
     #save
     if save is not None:
         with open(save, 'wb') as dir:
@@ -296,22 +320,22 @@ def create_neat_proj(data_manager, n_panels=1000, model:NeatModel = None, object
 # Creates a projection of carbon offset for adding solar panels to random zipcodes
 # The zipcode is randomly chosen for each panel, up to n panels
 ''' TODO REFACTOR (low prio)'''
-def create_random_proj(combined_df, n_panels=1000, metric='carbon_offset_metric_tons_per_panel'):
+def create_random_proj(zip_df, n_panels=1000, metric='carbon_offset_metric_tons_per_panel'):
     projection = np.zeros(n_panels+1)
-    picks = np.random.randint(0, len(combined_df['region_name']) -1, (n))
+    picks = np.random.randint(0, len(zip_df['region_name']) -1, (n))
     for i, pick in enumerate(picks):
 
-        while math.isnan(combined_df[metric][pick]):
-            pick = np.random.randint(0, len(combined_df[metric]))
-        projection[i+1] = projection[i] + combined_df[metric][pick]
+        while math.isnan(zip_df[metric][pick]):
+            pick = np.random.randint(0, len(zip_df[metric]))
+        projection[i+1] = projection[i] + zip_df[metric][pick]
 
     return projection
 
 # Creates multiple different projections and returns them
-def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='paper', save=None, load=None) -> list[Projection]:
+def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_panels:int=1000, objectives='paper', save=None, load=None) -> list[Projection]:
 
     if load is not None and os.path.exists(load):
-        print("Loading from previous calculations...")
+        print("Loading from previous simulation...")
         with open(load, 'rb') as dir:
             return pickle.load(dir)
 
@@ -319,21 +343,23 @@ def create_projections(combined_df:pd.DataFrame, n_panels:int=1000, objectives='
         objectives = create_paper_objectives()
 
     proj = []
+    print("Creating Status-Quo Projection")
+    proj.append(create_status_quo_projection(zip_df, n_panels, objectives=objectives))
     print("Creating Continued Projection")
-    proj.append(create_status_quo_projection(combined_df, n_panels, objectives=objectives))
+    proj.append(create_future_estimate_projection(zip_df, state_df, n_panels, objectives=objectives))
     print("Creating Greedy Carbon Offset Projection")
-    proj.append(create_greedy_projection(combined_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Aware"))
     print("Creating Greedy Average Sun Projection")
-    proj.append(create_greedy_projection(combined_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Aware"))
     print("Creating Greedy Black Proportion Projection")
-    proj.append(create_greedy_projection(combined_df, n_panels, sort_by='black_prop', objectives=objectives, name="Racial-Equity Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='black_prop', objectives=objectives, name="Racial-Equity Aware"))
     print("Creating Greedy Low Median Income Projection")
-    proj.append(create_greedy_projection(combined_df, n_panels, sort_by='Median_income', ascending=True, objectives=objectives, name="Income-Equity Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='Median_income', ascending=True, objectives=objectives, name="Income-Equity Aware"))
 
-    print("Creating Round Robin Projection")
-    proj.append(create_round_robin_projection(combined_df, projections=proj[1:5],
-                                                        n_panels=n_panels,
-                                                        objectives=objectives))
+    # print("Creating Round Robin Projection")
+    # proj.append(create_round_robin_projection(zip_df, projections=proj[1:5],
+    #                                                     n_panels=n_panels,
+    #                                                     objectives=objectives))
 
 
     if save is not None:
@@ -353,7 +379,7 @@ def create_paper_objectives() -> list[Objective]:
 
 # does a gridsearch over a possible range of weight values for a list of attributes and calculates the score on multiple objectives, storing them in a CSV if save is given
 ''' TODO TEST '''
-def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attributes:list[str]=[], max_weights=np.ones(4), n_samples:int=10, objectives:list[Objective]=[], save=None, load=None):
+def linear_weighted_gridsearch(zip_df:pd.DataFrame, n_panels:int=1000, attributes:list[str]=[], max_weights=np.ones(4), n_samples:int=10, objectives:list[Objective]=[], save=None, load=None):
     
     if load is not None and exists(load):
        return pd.read_csv(load)
@@ -363,8 +389,8 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
     i = 0
 
     for i in tqdm(range(n_samples**(len(attributes)))):
-        panel_placements = create_weighted_proj(combined_df, n_panels=n_panels, attributes=attributes, objectives=objectives, weights=weights).panel_placements
-        obj_scores = [obj.calc(combined_df, panel_placements) for obj in objectives]
+        panel_placements = create_weighted_proj(zip_df, n_panels=n_panels, attributes=attributes, objectives=objectives, weights=weights).panel_placements
+        obj_scores = [obj.calc(zip_df, panel_placements) for obj in objectives]
 
         all_scores[i] = np.append(weights, obj_scores)
 
@@ -387,15 +413,15 @@ def linear_weighted_gridsearch(combined_df:pd.DataFrame, n_panels:int=1000, attr
 
     return scores_df
 
-if __name__ == '__main__':
-    # TEST
-    combined_df = make_dataset(remove_outliers=True)
-    objectives = create_paper_objectives()
-    n_panels = 10000
-    test = linear_weighted_gridsearch(combined_df, n_panels=n_panels, 
-                                      attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
-                                      objectives=objectives, max_weights=np.array([2,2,-2,2]), n_samples=5, 
-                                      save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
-                                      load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
+# if __name__ == '__main__':
+#     # TEST
+#     zip_df = make_dataset(remove_outliers=True)
+#     objectives = create_paper_objectives()
+#     n_panels = 10000
+#     test = linear_weighted_gridsearch(zip_df, n_panels=n_panels, 
+#                                       attributes=['yearly_sunlight_kwh_kw_threshold_avg', 'carbon_offset_metric_tons_per_panel', 'black_prop', 'Median_income'], 
+#                                       objectives=objectives, max_weights=np.array([2,2,-2,2]), n_samples=5, 
+#                                       save="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv",
+#                                       load="Projection_Data/weighted_gridsearch_"+str(n_panels)+".csv")
 
-    print(test)
+#     print(test)

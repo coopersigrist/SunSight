@@ -6,6 +6,10 @@ import pgeocode
 import math
 from functools import reduce
 
+# Simple convertion from string with commas to float -- used by EIA data load
+def conv_strings_to_floats(lst):
+    new = [float(s.replace(",", "")) if type(s) == str else s for s in lst]
+    return np.array(new)
 
 # Loads Solar data for given zipcodes, also cleans and calculates new values
 def load_solar_data(zip_codes=None, load_dir="Clean_Data/sunroof_by_zip.csv", save=False):
@@ -173,6 +177,57 @@ def load_election_data(load_dir="Election/election_by_state_cleaner.csv", year=2
 
     return new_df
     
+def load_eia_installations_data(load_dir="Clean_Data/installs_by_state.csv", save=True, print_stats=False):
+    '''
+    Loads the most recent years EIA data for added Capacity and Generation by State
+    This has a known issue with AL data (see EIA/details.md)
+    '''
+    if exists(load_dir):
+        df = pd.read_csv(load_dir)
+        return df 
+
+    eia_df = pd.read_csv('EIA/small_scale_solar_by_state_by_month.csv')
+
+    for key in ['Residential_cap', 'Residential_gen','Commercial_cap','Commercial_gen','Industrial_cap','Industrial_gen', 'Total_cap', 'Total_gen']:
+        eia_df[key] = conv_strings_to_floats(eia_df[key])
+
+    eia_df.to_csv('small_scale_solar_by_state_by_month.csv', index=False)
+
+    eia_df = eia_df[eia_df['State'] != 'DC']
+
+    jan_df = eia_df[eia_df['Month'] == 1]
+    jan_2024_df = jan_df[jan_df['Year'] == 2024]
+    jan_2025_df = jan_df[jan_df['Year'] == 2025]
+
+
+    comp_df = pd.DataFrame(jan_2024_df['State'])
+    for key in ['Residential_cap', 'Residential_gen','Commercial_cap','Commercial_gen','Industrial_cap','Industrial_gen', 'Total_cap', 'Total_gen']:
+        comp_df[key + "_24"] = jan_2024_df[key].values
+        comp_df[key + "_25"] = jan_2025_df[key].values
+        
+
+    totals = {'24_res-cap': np.sum(jan_2024_df['Residential_cap']), '24_res-gen': np.sum(jan_2024_df['Residential_gen']), '25_res-cap': np.sum(jan_2025_df['Residential_cap']), '25_res-gen': np.sum(jan_2025_df['Residential_gen'])}
+
+    comp_df['Residential_cap_prop_24'] = jan_2024_df['Residential_cap'].values / totals['24_res-cap']
+    comp_df['Residential_gen_prop_24'] = jan_2024_df['Residential_gen'].values / totals['24_res-gen']
+    comp_df['Residential_cap_prop_25'] = jan_2025_df['Residential_cap'].values / totals['25_res-cap']
+    comp_df['Residential_gen_prop_25'] = jan_2025_df['Residential_gen'].values / totals['25_res-gen']
+
+    comp_df['Residential_added_cap'] = comp_df['Residential_cap_25'] - comp_df['Residential_cap_24']
+    comp_df['Residential_added_gen'] = comp_df['Residential_gen_25'] - comp_df['Residential_gen_24']
+
+    comp_df['prop_cap_added'] = comp_df['Residential_added_cap'] / np.sum(comp_df['Residential_added_cap'])
+
+    if save:
+        comp_df.to_csv('jan_24_25_by_state.csv', index=False)
+
+    if print_stats:
+        print("total small-scale solar capacity in Jan 2024:", round(np.sum(comp_df['Residential_cap_24']),1), "(estimated panels:", round(np.sum(comp_df['Residential_cap_24'])*4000,0), ")")
+        print("total small-scale solar capacity in Jan 2025:", round(np.sum(comp_df['Residential_cap_25']),1), "(estimated panels:", round(np.sum(comp_df['Residential_cap_25'])*4000,0), ")")
+        print("total small-scale solar capacity added in 2024:", np.sum(comp_df['Residential_cap_25']) - np.sum(comp_df['Residential_cap_24']), "(estimated panels:", (np.sum(comp_df['Residential_cap_25']) - np.sum(comp_df['Residential_cap_24']))*4000, ")")
+
+    return comp_df
+
 def stats_by_state(df, key, state):
     '''
     calculates the mean, std, and median of a particular coloumn of df (denoted by "key")
@@ -272,7 +327,8 @@ def make_state_dataset(df, energy_keys=None, stats_keys=None, load_dir="Clean_Da
     
     election_df = load_election_data().drop('state', axis=1)
     energy_df = load_state_energy_dat(keys=energy_keys, total=False)
-    incentives_df = pd.read_csv("Incentives/incentives_by_state.csv")
+    incentives_df = pd.read_csv("Incentives/incentives_by_state.csv").drop('State', axis=1)
+    installs_df = load_eia_installations_data().drop('State', axis=1)
     stats_df = pd.DataFrame()
 
     for key in stats_keys:
@@ -283,6 +339,10 @@ def make_state_dataset(df, energy_keys=None, stats_keys=None, load_dir="Clean_Da
     combined_state_df = pd.concat([energy_df, election_df, stats_df, incentives_df], axis=1)
 
     combined_state_df['estimated_install_count'] = combined_state_df['Solar'] * 1000 / combined_state_df['yearly_sunlight_kwh_kw_threshold_avg']
+
+    # Reorder to state code since installs_df is sorted by code, then resort to state name
+    combined_state_df.sort_values('State code')
+    combined_state_df = pd.concat([combined_state_df, installs_df], axis=1).sort_values('State')
 
     if load_dir is not None:
         combined_state_df.to_csv(load_dir, index=False)
@@ -369,8 +429,6 @@ def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_p
     if granularity == 'both':
         return zip_data, state_data, edf
     
-
-
 
 if __name__ == '__main__':
     zips_df, state_df, pos_df = make_dataset(granularity='both', remove_outliers=False, save=True)

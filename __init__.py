@@ -1,4 +1,4 @@
 from Visualization import *
 from Data import *
-from Paper_Plots import *
+from Examples import *
 from Models import *
