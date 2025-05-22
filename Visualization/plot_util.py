@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import pgeocode
 import plotly.graph_objects as go
+import plotly.io as pio
 import plotly.offline as pyo
 from decimal import Decimal
 import folium as fl
@@ -193,7 +194,7 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
         plt.show()
 
 # Creates a US map plot of the dat, edf should be provided, but if it isn't then it will be created as necessary using the zipcodes provided
-def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label="", size=20):
+def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label="", size=20, save_dir_prefix=None):
 
     # This should basically never get called since we define edf below, but if you were to import this you'd have to make sure zipcodes are provided to create the edf
     if edf is None:
@@ -243,6 +244,8 @@ def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label=""
             color="Black",
         )
         )
+    if save_dir_prefix is not None:
+        pio.write_image(fig,save_dir_prefix + "Maps/" + title + '_by_zip.png')
     
     fig.show()
 
@@ -337,7 +340,7 @@ def get_colorbrewer_palette(palette_name, bins):
     else:
         return [to_hex_color(c) for c in colors]
 
-def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix=""):
+def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix="", show=True):
     '''
     Plots a map of the US states with color intensity dependent on the attribute given by key
     '''
@@ -453,16 +456,18 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
     macro._template = Template(template)
     m.get_root().add_child(macro)
 
-    for key in m._children:
-        if key.startswith('color_map'):
-            del(m._children[key])
+    for k in m._children:
+        if k.startswith('color_map'):
+            del(m._children[k])
 
 
     img_data = m._to_png(5)
     img = Image.open(io.BytesIO(img_data))
     if save_dir_prefix is not None:
         img.save(save_dir_prefix + "Maps/" + key + '_by_state.png')
-    img.show()
+
+    if show:
+        img.show()
 
     # m.show_in_browser()
 

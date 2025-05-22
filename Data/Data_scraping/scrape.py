@@ -14,7 +14,7 @@ code_dict = {'B01003_001E': 'Total_Population',
                     'B03003_003E' : 'hispanic_population'}
 
 # Downloads and save census data by ZIP code -- downloads features listed in the code dict above
-census_df = get_census_info_by_zip_codes(save_dir="../Census/census_by_zip_w_hisp.csv",code_dict=code_dict)
+census_df = get_census_info_by_zip_codes(save_dir="../Census/census_by_zip.csv",code_dict=code_dict)
 
 # Downloads and saves the project sunroof data at zip, city, and state granularity
 # project_sunroof_scrape()

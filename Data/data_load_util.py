@@ -219,7 +219,7 @@ def load_eia_installations_data(load_dir="Clean_Data/installs_by_state.csv", sav
     comp_df['prop_cap_added'] = comp_df['Residential_added_cap'] / np.sum(comp_df['Residential_added_cap'])
 
     if save:
-        comp_df.to_csv('jan_24_25_by_state.csv', index=False)
+        comp_df.to_csv(load_dir, index=False)
 
     if print_stats:
         print("total small-scale solar capacity in Jan 2024:", round(np.sum(comp_df['Residential_cap_24']),1), "(estimated panels:", round(np.sum(comp_df['Residential_cap_24'])*4000,0), ")")
@@ -252,7 +252,6 @@ def stats_for_states(df, key):
     '''
 
     print("calculating statistics of states on:", key)
-
 
     pr_mask = df['state_name'].isin(['Aguadilla', 'Arecibo', 'Dorado', 'Hormigueros', 'Moca', 'Mayagüez', 'Ponce',
     'Canóvanas', 'Corozal', 'San Juan', 'Toa Baja', 'Toa Alta', 'Bayamón', 'Cataño',
@@ -395,6 +394,7 @@ def make_zip_dataset(remove_outliers=True, load_dir='Clean_Data/data_by_zip.csv'
     combined_df['asian_prop'] = (combined_df['asian_population'].values / combined_df['Total_Population'].values)
     combined_df['white_prop'] = (combined_df['white_population'].values / combined_df['Total_Population'].values)
     combined_df['black_prop'] = (combined_df['black_population'].values / combined_df['Total_Population'].values)
+    combined_df['hispanic_prop'] = (combined_df['hispanic_population'].values / combined_df['Total_Population'].values)
 
     combined_df['percent_below_poverty_line'] = combined_df['households_below_poverty_line'] / combined_df['total_households']
 
@@ -433,4 +433,4 @@ def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_p
 if __name__ == '__main__':
     zips_df, state_df, pos_df = make_dataset(granularity='both', remove_outliers=False, save=True)
     sum_df = make_state_dataset(zips_df, None, None, "Clean_data/data_by_state_sum.csv", agg="sum")
-    print(state_df['estimated_install_count'] - sum_df['existing_installs_count'])
+    # print(state_df['estimated_install_count'] - sum_df['existing_installs_count'])
