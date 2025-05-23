@@ -10,6 +10,7 @@ import pgeocode
 import plotly.graph_objects as go
 import plotly.io as pio
 import plotly.offline as pyo
+import kaleido
 from decimal import Decimal
 import folium as fl
 import io
@@ -244,10 +245,11 @@ def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label=""
             color="Black",
         )
         )
-    if save_dir_prefix is not None:
-        pio.write_image(fig,save_dir_prefix + "Maps/" + title + '_by_zip.png')
     
-    fig.show()
+    if save_dir_prefix is not None:
+        fig.write_image(fig,save_dir_prefix + "Maps/" + title + '_by_zip.png', format='png', engine='kaleido')
+    
+    fig.show(renderer="browser")
 
 def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California", 'New York', "US Total"], keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear'], ylabel="Proportion of energy generation", title="Energy Generation Proportions by state", sort_by=None,stack=True,legend_loc="auto",fontsize=None, colors=None):
 
@@ -667,7 +669,7 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     plt.tight_layout()
     plt.show()
 
-def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
+def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, save_dir_prefix=None, show=True, save_name=None, **kwargs):
 
     # Some default sizing and styling
     plt.style.use('seaborn-v0_8')
@@ -714,7 +716,11 @@ def plot_projections(projections:list, objective:str="Carbon Offset", panel_esti
     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
     #       ncol=1, shadow=True, fontsize=fontsize/1.4)
     plt.tight_layout()
-    plt.show()
+    if show:
+        plt.show()
+
+    if save_dir_prefix is not None:
+        plt.savefig(save_dir_prefix+"Simulation/Projection_Plots/"+save_name+'.png')
 
 
 
