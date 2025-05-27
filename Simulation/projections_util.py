@@ -34,14 +34,7 @@ class Projection():
     def add_proj_to_plot(self, ax, objective: str, **kwargs):
         # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
         objective_proj = self.objective_projections[objective]
-
-        #sort the projection keys first
-        sorted_items = sorted(objective_proj.items())  # (x,y)
-        keys, values = zip(*sorted_items)
-        keys = list(keys)
-        values = list(values)
-
-        return ax.plot(keys, values, label=self.name, **kwargs)
+        return ax.plot(objective_proj.keys(), objective_proj.values(), label=self.name, **kwargs)
     
 class Objective():
 
@@ -155,7 +148,6 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     This estimate of future installations first divides the potential added panels into proportions added to each State based on EIA data of added Capacity by State (see Data/EIA/details.md)
     Next the potential added panels are proportioned out further inside the states based on the existing install counts from project sunroof (see Data/Sunroof/details.md) 
 
-    
     '''
 
     # Overall ratio of the panels added to each ZIP
@@ -172,15 +164,13 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
         state_added_installs = zip(state_zip_df['region_name'], state_prop_installs * zip_prop_installs) 
         placement_ratio.update(dict(state_added_installs))
 
-        
-    
     objective_projections = init_objective_projs(zip_df,objectives)
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
     for interval in tqdm(range(intervals - 1)):
-        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels)/(interval + 1) for zip_code in placement_ratio}
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* interval+1/intervals) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].update({(n_panels)/(interval + 1) : obj.calc(zip_df, placed_panels)})
+            objective_projections[obj.name].update({(n_panels) * interval+1/intervals : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
