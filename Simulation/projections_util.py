@@ -54,7 +54,7 @@ class Objective():
 
 # Creates a DF with updated values of existing installs, carbon offset potential(along with per panel), and realized potential
 # After a set of picks (zip codes with a panel placed in them)
-def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict, load=None, save=None):
+def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict):
 
     new_df = zip_df
     new_existing = np.array(new_df['existing_installs_count'])
