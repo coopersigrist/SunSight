@@ -5,12 +5,12 @@ import os
 import pickle
 import neat
 import numpy as np
-from SunSight.Data.data_manager import DataManager
-from projections_util import Objective, create_neat_proj, create_paper_objectives, NeatModel
-from SunSight.Models.Neat.selection_util import TournamentReproduction, FitnessPropReproduction
-from SunSight.Data.data_load_util import load_state_data, make_dataset
+from Data.data_manager import DataManager
+from Simulation.projections_util import Objective, create_neat_proj, create_paper_objectives
+from Models.Neat.selection_util import TournamentReproduction, FitnessPropReproduction
+from Data.data_load_util import make_dataset
 from tqdm import tqdm
-from Neat.saving_util import *
+from .saving_util import *
 
 
 class NeatModel():
@@ -37,12 +37,13 @@ class Evaluation():
     '''
     Genome Evaluation schemes like lexicase and weighted sum; works in tandem with Reproduction schemes
     '''
-    def __init__(self, combined_df, objectives, num_panels, weights=[1,1,1,1]):
+    def __init__(self, combined_df, data_manager, objectives, num_panels, weights=[1,1,1,1]):
         self.objectives = objectives
         self.num_panels = num_panels
         self.weights = weights
         self.overall_threshold = 0.3
         self.combined_df = combined_df
+        self.data_manager = data_manager
 
     #NOTE: may be unnecessary with projections now up and running
     #score a simulation and record the cumulative score across all metrics
@@ -57,7 +58,7 @@ class Evaluation():
         score = info[1][objective_name][self.num_panels]
 
         #TODO: find out what the type of "score" is... it should just be a number but apparently not!??
-        print(score)
+        # print(objective_name, score)
 
         #self.objectives[objective_ind].calc(self.combined_df, info[1])#data_manager.score(info[1], self.objectives[metric_ind], n, train=True)
 
@@ -80,7 +81,7 @@ class LexicaseEval(Evaluation):
             genome.fitness = 0 #set all fitness to a minimum initially
                     
             model = NeatModel(neat.nn.FeedForwardNetwork.create(genome, config))
-            projection = create_neat_proj(data_manager, self.num_panels, model, self.objectives)
+            projection = create_neat_proj(self.data_manager, self.num_panels, model, self.objectives)
             #objective projections is projection.objective_projections; is a dictionary of {objective name: objective score}
 
             genome_info.append([genome, projection.objective_projections, 0]) #genome pointer, zip_order, and cumulative score
@@ -108,7 +109,8 @@ class LexicaseEval(Evaluation):
         genome_info.sort(key = lambda info: info[2], reverse=True)
 
         for genome, zip_order, score in genome_info[0:final_threshold]:
-            genome.fitness = score
+            #genome.fitness = score
+            genome.fitness = 1 #set fitness to 1 for the chosen genomes
 
             #find the best performing score in this generation
             if genome.fitness > best_score:
@@ -192,7 +194,7 @@ class NeatTrainer():
         p.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
-        p.add_reporter(neat.Checkpointer(time_interval_seconds=1200, filename_prefix='Neat/checkpoints/neat-checkpoint-'))
+        # p.add_reporter(neat.Checkpointer(time_interval_seconds=1200, filename_prefix='Neat/checkpoints/neat-checkpoint-'))
 
         # Run for up to 300 generations.
         print("training model...")
@@ -254,7 +256,7 @@ if __name__=="__main__":
     config_path = os.path.join(local_dir, 'Neat/neat-config')
 
     combined_df = make_dataset(remove_outliers=True)
-    state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
+    state_df = None #load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
     data_manager = DataManager(combined_df, state_df)
 
     objectives = create_paper_objectives()

@@ -34,7 +34,14 @@ class Projection():
     def add_proj_to_plot(self, ax, objective: str, **kwargs):
         # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
         objective_proj = self.objective_projections[objective]
-        return ax.plot(objective_proj.keys(), objective_proj.values(), label=self.name, **kwargs)
+
+        #sort the projection keys first
+        sorted_items = sorted(objective_proj.items())  # (x,y)
+        keys, values = zip(*sorted_items)
+        keys = list(keys)
+        values = list(values)
+
+        return ax.plot(keys, values, label=self.name, **kwargs)
     
 class Objective():
 
@@ -187,9 +194,10 @@ def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metri
     sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
 
     # Initialize the projections dictionary
-    projections = dict()
-    for objective in objectives:
-        projections[objective.name] = {0:0}
+    projections = init_objective_projs(zip_df,objectives)
+    # projections = dict()
+    # for objective in objectives:
+    #     projections[objective.name] = {0:0}
 
     # greedy_best_not_filled is which index of the sorted array we will pick next, i is a counter
     greedy_best_not_filled_index = 0
@@ -303,7 +311,7 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
         with open(load, 'rb') as dir:
             return pickle.load(dir)
     
-    new_df = data_manager.zip_df
+    new_df = data_manager.combined_df
     new_df['value'] = 0
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
