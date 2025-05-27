@@ -11,12 +11,12 @@ import warnings
 
 #data manager
 class DataManager:
-    def __init__(self, combined_df, state_df,
+    def __init__(self, combined_df,
                  fields=['Median_income', 'carbon_offset_kg_per_panel', 'energy_generation_per_panel', 'realized_potential_percent', 'black_prop'], train=False):
         #Note: remove Republican_prop
         #fields needs to consider energy efficiency, equity, and carbon efficiency
         self.combined_df = combined_df
-        self.state_df = state_df
+        # self.state_df = state_df
         self.num_zips = len(self.combined_df)
         self.num_train_zips = self.num_zips # number of training points
         self.fields = fields
@@ -34,18 +34,18 @@ class DataManager:
 
     def synthesize_df(self): #create a full df per zip code
         #change the Washington, D.C. key in state_df to be compatible with combined_df
-        self.state_df.loc[47, 'State'] = "District of Columbia"
+        # self.state_df.loc[47, 'State'] = "District of Columbia"
 
         #Merge political preference into combined_df
-        republian_prop = self.state_df[['State', 'Republican_prop']]
-        self.combined_df = self.combined_df.merge(republian_prop, left_on='state_name', right_on='State', how='left')
+        # republian_prop = self.state_df[['State', 'Republican_prop']]
+        # self.combined_df = self.combined_df.merge(republian_prop, left_on='state_name', right_on='State', how='left')
 
         #only use desired fields
         # self.combined_df = self.combined_df[self.fields]
 
         #normalize all inputs to [0,1] in new df
         self.normalized_df = (self.combined_df[self.fields] - self.combined_df[self.fields].min()) / (self.combined_df[self.fields].max() - self.combined_df[self.fields].min())
-        self.normalized_df['State'] = self.combined_df['State']
+        # self.normalized_df['State'] = self.combined_df['State']
 
         #add existing installs count as not normalized
         self.normalized_df['existing_installs_count'] = self.combined_df['existing_installs_count'] 

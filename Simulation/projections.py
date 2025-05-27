@@ -1,9 +1,9 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from .Visualization.plot_util import *
-from .Data.data_load_util import *
-from projections_util import *
+from Visualization.plot_util import *
+from Data.data_load_util import *
+from .projections_util import *
 from tqdm import tqdm
 
  
@@ -115,7 +115,7 @@ def weighted_proj_heatmap(combined_df, metric='carbon_offset_kg_per_panel', obje
 #TODO: make these new charts compatible
 
 #ratio comparison projection
-def plot_comparison_ratio(base_projection:Projection, comparison_projection:Projection, base_key, comparison_key, objectives = ['Carbon Offset', 'Energy Potential', 'Racial Equity', 'Income Equity'], interval = 1, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"]):
+def plot_comparison_ratio(base_projection:Projection, comparison_projection:Projection, base_key, comparison_key, objectives:list[Objective] = create_paper_objectives(), interval = 10000, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"]):
     
     # plt.style.use("seaborn")
     font = {'family' : 'DejaVu Sans',
@@ -129,18 +129,37 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
     comp = pd.DataFrame(comparison_projection.objective_projections)
     base = pd.DataFrame(base_projection.objective_projections)
 
+    #interpolate x-values based on interval
+    new_x = np.arange(1, int(comp.index.max()) + 1, interval)
+    #compared projection
+    comp=comp.sort_index()
+    comp_interp = pd.DataFrame(index=new_x)
     for objective in objectives:
-        ratios[objective] = comp[objective]/base[objective]
+        objective_name = objective.name
+        comp_interp[objective_name] = np.interp(new_x, comp.index, comp[objective_name])
+    comp = comp_interp
 
-        print(objective, ratios[objective][0])
+
+    #base projection
+    base = base.sort_index()
+    base_interp = pd.DataFrame(index=new_x)
+    for objective in objectives:
+        objective_name = objective.name
+        base_interp[objective_name] = np.interp(new_x, base.index, base[objective_name])
+    base = base_interp
+
+    #calculate ratios
+    for objective in objectives:
+        objective_name = objective.name
+        ratios[objective_name] = comp[objective_name]/base[objective_name]
     
     ratios = ratios.dropna() #remove all NAN items
 
     #plot ratios
     # x = np.arange(math.ceil(len(ratios[objectives[0]]) / interval)) * interval
-    for key, fmt in zip(objectives, fmts):
+    for key, fmt in zip([objectives.name for objectives in objectives], fmts):
         #use x values from the ratios list
-        plt.plot(ratios.index.tolist()[0::interval], np.array(ratios[key])[0::interval], fmt, label=key, linewidth=3, markersize=8, alpha=0.9)
+        plt.plot(ratios.index.tolist(), np.array(ratios[key]), fmt, label=key, linewidth=3, markersize=8, alpha=0.9)
         plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
 
     #show baseline
@@ -157,58 +176,62 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
 
 #bar graph ver of ratio comparison
-def plot_bar_comparison_ratio(all_metric_projections, base_key, method_keys = ["NEAT_model"], method_names = ['Lexicase'], metric_labels = ['carbon_offset', 'energy_generation', 'racial_equity', 'income_equity']):
+def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000):
     #get the last value for all objectives for all methods
     results = [] #ex: array of [lexicase results, tournament results etc.]
-    for key in method_keys:
+    base = pd.DataFrame(base_projection.objective_projections)
+
+    for projection in all_projections:
         result = [] #array of [CO, EG, RE, IE]
-        for projection in all_metric_projections:
-            result.append(projection[key].tolist()[-1] / projection[base_key].tolist()[-1]) #get the ratio to the base key
+        proj = pd.DataFrame(projection.objective_projections)
+        for objective in objectives:
+            objective_name = objective.name
+            result.append(proj[objective_name][panel_count] / base[objective_name][panel_count]) #get the ratio to the base key
         results.append(result)
 
     # Configuration for the bar graph
-    x = np.arange(len(metric_labels))  # X positions for the groups
+    x = np.arange(len(objectives)) # X positions for the groups
     width = 0.1  # Width of each bar
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Add bars for each method
-    for i, method in enumerate(method_names):
-        ax.bar(x + i * width, results[i], width, label=method)
+    for i, proj in enumerate(all_projections):
+        ax.bar(x + i * width, results[i], width, label=proj.name)
     
     #show baseline
     plt.axhline(y=1, color='b', linestyle='--', linewidth=1) 
 
     # Add labels, title, and legend
     ax.set_xlabel('Objectives')
-    ax.set_ylabel('Fitness')
+    ax.set_ylabel('Fitness Ratio')
     ax.set_title('Fitness of Selection Methods for all Objectives')
     ax.set_xticks(x + width)
-    ax.set_xticklabels(metric_labels)
-    ax.legend()
+    ax.set_xticklabels([objectives.name for objectives in objectives])
+    ax.legend(fontsize=14)
 
     # Show the plot
     plt.tight_layout()
     plt.show()
 
 
-if __name__ == '__main__':
-    print("running")
-    combined_df = make_dataset(remove_outliers=True)
-    state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
-    data_manager = DataManager(combined_df, state_df)
+# if __name__ == '__main__':
+#     print("running")
+#     combined_df = make_dataset(remove_outliers=True)
+#     state_df = load_state_data(combined_df, load="Clean_Data/data_by_state.csv")
+#     data_manager = DataManager(combined_df, state_df)
 
-    max_num_added = 2000000
-    projection_list = create_projections(combined_df, n_panels=max_num_added, save='Projection_Data/2mill_No_lex.pkl', load='Projection_Data/2mill_No_lex.pkl')
-    panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
+#     max_num_added = 2000000
+#     projection_list = create_projections(combined_df, n_panels=max_num_added, save='Projection_Data/2mill_No_lex.pkl', load='Projection_Data/2mill_No_lex.pkl')
+#     panel_estimations_by_year = [("Net-Zero" , 479000 * 3), ("  2030  ", 479000 * 1), ("  2034  ", 479000 * 2)]
 
 
-    #test a neat model
-    print("creating NEAT")
-    with open("Neat/models/01-09-25/NEAT_model2M_lexicase.pkl", 'rb') as f:
-        network = pickle.load(f)
-    projection_list2 = [create_neat_proj(data_manager, max_num_added, NeatModel(network), create_paper_objectives(), save="Projection_Data/2mill_best.pkl", load="Projection_Data/2mill_best.pkl")]
-    # plot_projections(projections=projection_list + projection_list2, panel_estimations=panel_estimations_by_year)
+#     #test a neat model
+#     print("creating NEAT")
+#     with open("Neat/models/01-09-25/NEAT_model2M_lexicase.pkl", 'rb') as f:
+#         network = pickle.load(f)
+#     projection_list2 = [create_neat_proj(data_manager, max_num_added, NeatModel(network), create_paper_objectives(), save="Projection_Data/2mill_best.pkl", load="Projection_Data/2mill_best.pkl")]
+#     # plot_projections(projections=projection_list + projection_list2, panel_estimations=panel_estimations_by_year)
 
-    plot_comparison_ratio(projection_list[0], projection_list2[0], "base","comp", interval=25)
+#     plot_comparison_ratio(projection_list[0], projection_list2[0], "base","comp", interval=25)
