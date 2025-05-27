@@ -52,7 +52,7 @@ def get_census_info_by_zip_codes(code_dict, save_dir="../Census/census_by_zip.cs
     df = df.rename(columns={'zip code tabulation area':'zcta'})
     
     # Saves the Census data 
-    df.to_csv(save_dir)
+    df.to_csv(save_dir, index=False)
 
     return df
 

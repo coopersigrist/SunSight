@@ -343,7 +343,7 @@ def create_random_proj(zip_df, n_panels=1000, metric='carbon_offset_metric_tons_
 def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_panels:int=1000, objectives='paper', save=None, load=None) -> list[Projection]:
 
     if load is not None and os.path.exists(load):
-        print("Loading from previous calculations...")
+        print("Loading from previous simulation...")
         with open(load, 'rb') as dir:
             return pickle.load(dir)
 
