@@ -168,9 +168,9 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
     for interval in tqdm(range(intervals - 1)):
-        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* interval+1/intervals) for zip_code in placement_ratio}
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/intervals) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].update({(n_panels) * interval+1/intervals : obj.calc(zip_df, placed_panels)})
+            objective_projections[obj.name].update({(n_panels) * (interval+1)/intervals : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
@@ -180,14 +180,11 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
 # Returns the Carbon offset for each amount of panels added
 def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
     
-    # Sorts the combined DF by a given value (must be a col in zip_df)
-    sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
-
     # Initialize the projections dictionary
     projections = init_objective_projs(zip_df,objectives)
-    # projections = dict()
-    # for objective in objectives:
-    #     projections[objective.name] = {0:0}
+
+    # Sorts the combined DF by a given value (must be a col in zip_df)
+    sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
 
     # greedy_best_not_filled is which index of the sorted array we will pick next, i is a counter
     greedy_best_not_filled_index = 0
