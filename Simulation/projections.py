@@ -130,7 +130,7 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
     base = pd.DataFrame(base_projection.objective_projections)
 
     #interpolate x-values based on interval
-    new_x = np.arange(1, int(comp.index.max()) + 1, interval)
+    new_x = np.arange(0, int(comp.index.max()) + 1, interval)
     #compared projection
     comp=comp.sort_index()
     comp_interp = pd.DataFrame(index=new_x)
@@ -153,7 +153,7 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
         objective_name = objective.name
         ratios[objective_name] = comp[objective_name]/base[objective_name]
     
-    ratios = ratios.dropna() #remove all NAN items
+    ratios = ratios.fillna(1) #remove all NAN items
 
     #plot ratios
     # x = np.arange(math.ceil(len(ratios[objectives[0]]) / interval)) * interval
