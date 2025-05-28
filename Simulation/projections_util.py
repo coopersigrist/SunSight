@@ -56,7 +56,7 @@ class Objective():
 # After a set of picks (zip codes with a panel placed in them)
 def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict):
 
-    new_df = zip_df
+    new_df = zip_df.copy()
     new_existing = np.array(new_df['existing_installs_count'])
 
     for zip in placed_panels:
