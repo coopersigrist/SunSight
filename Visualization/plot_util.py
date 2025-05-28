@@ -8,12 +8,17 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import pgeocode
 import plotly.graph_objects as go
+import plotly.io as pio
+import plotly.offline as pyo
+import kaleido
 from decimal import Decimal
 import folium as fl
 import io
 import os
 from PIL import Image
 import branca.colormap as cm
+from branca.element import Template, MacroElement
+from branca.colormap import linear
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
 
@@ -190,7 +195,7 @@ def complex_scatter(combined_df, x, y, xlabel, ylabel, fit=[1], title=None, bins
         plt.show()
 
 # Creates a US map plot of the dat, edf should be provided, but if it isn't then it will be created as necessary using the zipcodes provided
-def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label="", size=20):
+def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label="", size=20, save_dir_prefix=None):
 
     # This should basically never get called since we define edf below, but if you were to import this you'd have to make sure zipcodes are provided to create the edf
     if edf is None:
@@ -220,7 +225,7 @@ def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label=""
             opacity = 0.7,
             size = size,
             colorbar = dict(
-                titleside = "right",
+                # titleside = "right",
                 x = 0.8,
                 xpad = 200,
                 outlinecolor = "rgba(68, 68, 68, 0)",
@@ -240,7 +245,11 @@ def geo_plot(dat, color_scale, title, edf=None, zipcodes=None, colorbar_label=""
             color="Black",
         )
         )
-    fig.show()
+    
+    if save_dir_prefix is not None:
+        fig.write_image(fig,save_dir_prefix + "Maps/" + title + '_by_zip.png', format='png', engine='kaleido')
+    
+    fig.show(renderer="browser")
 
 def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California", 'New York', "US Total"], keys=['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear'], ylabel="Proportion of energy generation", title="Energy Generation Proportions by state", sort_by=None,stack=True,legend_loc="auto",fontsize=None, colors=None):
 
@@ -289,7 +298,51 @@ def state_bar_plot(energy_gen_df, states=['Texas', 'Massachusetts', "California"
     plt.title(title, fontsize=fontsize)
     plt.show()
 
-def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix=""):
+def get_colorbrewer_palette(palette_name, bins):
+    """
+    Returns a list of hex color codes as strings from the given ColorBrewer palette.
+    - palette_name: e.g. "Blues", "BuPu"
+    - bins: int, number of colors
+    """
+    from branca.colormap import linear
+
+    def to_hex_color(c):
+        return '#{:02x}{:02x}{:02x}'.format(
+            int(c[0]*255), int(c[1]*255), int(c[2]*255)
+        )
+
+    palette_name = palette_name.strip()
+    
+    # Try to find the closest available branca ColorBrewer colormap
+    found = False
+    possible_ns = list(range(bins, 2, -1)) + [9, 8, 7, 6, 5, 4, 3]
+    for n in possible_ns:
+        try:
+            brewer = getattr(linear, f"{palette_name}_{str(n).zfill(2)}")
+            base_colors = brewer.colors
+            found = True
+            break
+        except AttributeError:
+            continue
+
+    if not found:
+        brewer = linear.BuPu_09
+        base_colors = brewer.colors
+
+    # If we found the right number of bins, just return the palette (it should already be hex)
+    if len(base_colors) == bins and isinstance(base_colors[0], str):
+        return base_colors
+
+    # Otherwise, interpolate using the colormap
+    continuous = brewer.scale(0, 1)
+    colors = [continuous(i/(bins-1)) for i in range(bins)]
+    # If hex, leave as is; if tuple, convert to hex
+    if isinstance(colors[0], str):
+        return colors
+    else:
+        return [to_hex_color(c) for c in colors]
+
+def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix="", show=True):
     '''
     Plots a map of the US states with color intensity dependent on the attribute given by key
     '''
@@ -303,16 +356,120 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
     if legend_name is None:
         legend_name = key
 
-    fl.Choropleth(geo_data=state_geo, data=stats_df,
-    columns=['State code', key],key_on='feature.id', fill_color=fill_color, colorbar=dict(thickness = 100,font={'family' : 'DejaVu Sans',
-    'weight' : 'bold',
-    'size'   : 20}), line_weight=1, fill_opacity=0.7, line_opacity=.5,legend_name=legend_name).add_to(m)
+    fig = fl.Choropleth(geo_data=state_geo, data=stats_df,
+    columns=['State code', key],key_on='feature.id', fill_color=fill_color, line_weight=1, fill_opacity=0.7, line_opacity=.5)
+    
+    for k in fig._children:
+        if k.startswith('color_map'):
+            del(fig._children[k])   
+
+    fig.add_to(m)
+
+    min_value = round(np.min(stats_df[key]), 2)
+    max_value = round(np.max(stats_df[key]),2)
+    palette = ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"]
+    palette = get_colorbrewer_palette(fill_color, bins=7)
+
+    template = f"""
+        {{% macro html(this, kwargs) %}}
+
+        <!-- Title -->
+        <div style="
+            position: fixed;
+            left: 50px;
+            bottom: 90px;
+            z-index:9999;
+            font-size: 26px;
+            font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            color: #222;
+            background: rgba(255,255,255,0.85);
+            padding: 5px 12px 2px 12px;
+            border-radius: 8px 8px 0 0;
+            border: 2px solid #AAA;
+            border-bottom: none;
+            box-shadow: 2px 2px 6px rgba(50,50,50,0.18);
+            ">
+        {legend_name}
+        </div>
+
+        <!-- Box and Colorbar -->
+        <div style="
+            position: fixed; 
+            left: 50px; 
+            bottom: 50px;
+            width: 420px;
+            height: 40px;
+            background: white;
+            border: 2px solid #aaa;
+            border-radius: 0 0 10px 10px;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            box-shadow: 2px 2px 6px rgba(50,50,50,0.18);
+            padding: 0 0 0 0;
+            opacity: 0.96;
+        ">
+            <span style="
+                font-size: 18px;
+                font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
+                color: #444;
+                font-weight: bold;
+                padding-left: 15px;
+                padding-right: 10px;
+                min-width: 45px;
+                text-align: right;
+                ">
+            {min_value}
+            </span>
+
+            <svg width="320" height="22" style="margin: 0 10px; flex-shrink:1;">
+            <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="{palette[0]}" />
+                <stop offset="16%"  stop-color="{palette[1]}" />
+                <stop offset="33%"  stop-color="{palette[2]}" />
+                <stop offset="50%"  stop-color="{palette[3]}" />
+                <stop offset="66%"  stop-color="{palette[4]}" />
+                <stop offset="83%"  stop-color="{palette[5]}" />
+                <stop offset="100%" stop-color="{palette[6]}" />
+                </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="320" height="22" fill="url(#grad1)" stroke="#888" stroke-width="1"/>
+            </svg>
+
+            <span style="
+                font-size: 18px;
+                font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
+                color: #444;
+                font-weight: bold;
+                padding-right: 15px;
+                padding-left: 10px;
+                min-width: 45px;
+                text-align: left;
+                ">
+            {max_value}
+            </span>
+        </div>
+        {{% endmacro %}}
+    """
+
+    macro = MacroElement()
+    macro._template = Template(template)
+    m.get_root().add_child(macro)
+
+    for k in m._children:
+        if k.startswith('color_map'):
+            del(m._children[k])
+
 
     img_data = m._to_png(5)
     img = Image.open(io.BytesIO(img_data))
     if save_dir_prefix is not None:
         img.save(save_dir_prefix + "Maps/" + key + '_by_state.png')
-    img.show()
+
+    if show:
+        img.show()
 
     # m.show_in_browser()
 
@@ -512,10 +669,9 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     plt.tight_layout()
     plt.show()
 
-def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, **kwargs):
+def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, save_dir_prefix=None, show=True, save_name=None, **kwargs):
 
     # Some default sizing and styling
-    print(plt.style.available)
     plt.style.use('seaborn-v0_8')
     font = {'family' : 'DejaVu Sans',
     'weight' : 'bold',
@@ -560,7 +716,11 @@ def plot_projections(projections:list, objective:str="Carbon Offset", panel_esti
     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
     #       ncol=1, shadow=True, fontsize=fontsize/1.4)
     plt.tight_layout()
-    plt.show()
+    if show:
+        plt.show()
+
+    if save_dir_prefix is not None:
+        plt.savefig(save_dir_prefix+"Simulation/Projection_Plots/"+save_name+'.png')
 
 
 
