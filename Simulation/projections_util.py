@@ -125,7 +125,7 @@ def init_objective_projs(zip_df, objectives:list[Objective]):
 
 # Creates a projection of carbon offset if the current ratio of panel locations remain the same 
 # allowing partial placement of panels in zips and not accounting in the filling of zip codes.
-def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Objective]=[]):
+def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Objective]=[], intervals=10):
 
     total_panels = np.sum(zip_df['existing_installs_count'])
     total_prop = n_panels / total_panels
@@ -134,16 +134,17 @@ def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Obje
     objective_projections = {obj.name : {} for obj in objectives}
 
     panel_placements = {row['region_name']: row['existing_installs_count']*total_prop for _,row in zip_df.iterrows()}
-
+    # interval_size = n_panels/intervals
     for obj in objectives:
         obj_val = obj.calc(zip_df, panel_placements=panel_placements)
         obj_ratio = obj_val/n_panels
 
         # Shortcut for calcing progressively increasing projections quickly, doesnt work for equity
         if obj.name not in ['Racial Equity', 'Income Equity']:
-            objective_projections[obj.name] = { n:int(n*obj_ratio) for n in range(n_panels+1)}
+            objective_projections[obj.name] = { n:float(n*obj_ratio) for n in range(0, n_panels+1)}
         else:
-            objective_projections[obj.name] = { n:int(obj_val) for n in range(n_panels+1)}
+            print(obj.name, obj_val)
+            objective_projections[obj.name] = { n:float(obj_val) for n in range(0, n_panels+1)}
 
     sq_projection = Projection(objective_projections, panel_placements, name="Staus Quo")
 
@@ -311,7 +312,7 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
         with open(load, 'rb') as dir:
             return pickle.load(dir)
     
-    new_df = data_manager.combined_df
+    new_df = data_manager.combined_df.copy(deep=True)
     new_df['value'] = 0
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
