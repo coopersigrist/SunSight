@@ -167,8 +167,8 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
     # plt.ylim(0, 2) #set the range of the plots
     plt.ylabel(f"Ratio to {base_key}", fontsize=fontsize, labelpad=20)
-    plt.legend(fontsize=fontsize/1.5)
-    plt.title(f"Performance of {comparison_key}")
+    plt.legend(fontsize=fontsize/2)
+    # plt.title(f"Performance of {comparison_key}")
     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
     #       ncol=1, shadow=True, fontsize=fontsize/1.4)
     plt.tight_layout()
@@ -176,7 +176,7 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
 
 #bar graph ver of ratio comparison
-def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000):
+def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000, fontsize = 15):
     #get the last value for all objectives for all methods
     results = [] #ex: array of [lexicase results, tournament results etc.]
     base = pd.DataFrame(base_projection.objective_projections)
@@ -204,12 +204,13 @@ def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[P
     plt.axhline(y=1, color='b', linestyle='--', linewidth=1) 
 
     # Add labels, title, and legend
-    ax.set_xlabel('Objectives')
-    ax.set_ylabel('Fitness Ratio')
-    ax.set_title('Fitness of Selection Methods for all Objectives')
-    ax.set_xticks(x + width)
-    ax.set_xticklabels([objectives.name for objectives in objectives])
-    ax.legend(fontsize=14)
+    # ax.set_xlabel('Objectives')
+    ax.set_ylabel(f'Fitness Ratio to {base_projection.name}', fontsize=fontsize)
+    # ax.set_title('Fitness of Selection Methods for all Objectives')
+    ax.set_xticks(x + width*(len(all_projections)-1)/2)
+    ax.set_xticklabels([objectives.name for objectives in objectives], fontsize=fontsize/1.5)
+    ax.legend(fontsize=fontsize/1.5, loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4)
+    # plt.ylim(0, 2) #set the y axis bounds
 
     # Show the plot
     plt.tight_layout()

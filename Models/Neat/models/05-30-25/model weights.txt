@@ -1,0 +1,6 @@
+NEAT_model_lexicase_weighted [1,1,1,1]
+NEAT_model_lexicase_weighted_1 [1, 1, np.float64(1.145853766934933), 1]
+NEAT_model_lexicase_weighted_2 [1, 1, np.float64(1.487431321576903), 1]
+NEAT_model_lexicase_weighted_3 [1, np.float64(1.012620957722698), np.float64(1.8366116371175862), 1]
+NEAT_model_lexicase_weighted_4 [1, np.float64(1.012620957722698), np.float64(1.8366116371175862), 1]
+NEAT_model_lexicase_weighted_5 [np.float64(1.2637165698007589), np.float64(1.012620957722698), np.float64(1.8366116371175862), 1]
