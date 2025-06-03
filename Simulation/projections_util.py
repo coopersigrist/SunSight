@@ -34,14 +34,7 @@ class Projection():
     def add_proj_to_plot(self, ax, objective: str, **kwargs):
         # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
         objective_proj = self.objective_projections[objective]
-
-        #sort the projection keys first
-        sorted_items = sorted(objective_proj.items())  # (x,y)
-        keys, values = zip(*sorted_items)
-        keys = list(keys)
-        values = list(values)
-
-        return ax.plot(keys, values, label=self.name, **kwargs)
+        return ax.plot(objective_proj.keys(), objective_proj.values(), label=self.name, **kwargs)
     
 class Objective():
 
@@ -61,8 +54,7 @@ class Objective():
 
 # Creates a DF with updated values of existing installs, carbon offset potential(along with per panel), and realized potential
 # After a set of picks (zip codes with a panel placed in them)
-def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict, load=None, save=None):
-
+def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict):
     new_df = zip_df.copy(deep=True)
     new_existing = np.array(new_df['existing_installs_count'])
 
@@ -156,7 +148,6 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     This estimate of future installations first divides the potential added panels into proportions added to each State based on EIA data of added Capacity by State (see Data/EIA/details.md)
     Next the potential added panels are proportioned out further inside the states based on the existing install counts from project sunroof (see Data/Sunroof/details.md) 
 
-    
     '''
 
     # Overall ratio of the panels added to each ZIP
@@ -173,15 +164,13 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
         state_added_installs = zip(state_zip_df['region_name'], state_prop_installs * zip_prop_installs) 
         placement_ratio.update(dict(state_added_installs))
 
-        
-    
     objective_projections = init_objective_projs(zip_df,objectives)
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
     for interval in tqdm(range(intervals - 1)):
-        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels)/(interval + 1) for zip_code in placement_ratio}
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/intervals) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].update({(n_panels)/(interval + 1) : obj.calc(zip_df, placed_panels)})
+            objective_projections[obj.name].update({(n_panels) * (interval+1)/intervals : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
@@ -191,14 +180,11 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
 # Returns the Carbon offset for each amount of panels added
 def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
     
-    # Sorts the combined DF by a given value (must be a col in zip_df)
-    sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
-
     # Initialize the projections dictionary
     projections = init_objective_projs(zip_df,objectives)
-    # projections = dict()
-    # for objective in objectives:
-    #     projections[objective.name] = {0:0}
+
+    # Sorts the combined DF by a given value (must be a col in zip_df)
+    sorted_zip_df = zip_df.sort_values(sort_by, ascending=ascending, inplace=False, ignore_index=True)
 
     # greedy_best_not_filled is which index of the sorted array we will pick next, i is a counter
     greedy_best_not_filled_index = 0

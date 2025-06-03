@@ -59,7 +59,7 @@ class DataManager:
         self.fold_num = 0
     
     #train-test split; call this once
-    def train_test_split(self, test_size=0.2, random_state=69):
+    def train_test_split_wrapper(self, test_size=0.2, random_state=69):
         self.train_df, self.test_df = train_test_split(self.normalized_df, test_size=test_size, random_state=random_state)
 
     #generate k folds of data from the train data; call this once
