@@ -386,6 +386,13 @@ def create_paper_objectives() -> list[Objective]:
 
     return [carbon_offset, energy_pot, racial_equity,income_equity]
 
+#just create equity objectives
+def create_equity_objectives() -> list[Objective]:
+    racial_equity = Objective(name = "Racial Equity", func=calc_equity, type="racial")
+    income_equity = Objective(name = "Income Equity", func=calc_equity, type="income")
+
+    return [racial_equity,income_equity]
+
 # does a gridsearch over a possible range of weight values for a list of attributes and calculates the score on multiple objectives, storing them in a CSV if save is given
 ''' TODO TEST '''
 def linear_weighted_gridsearch(zip_df:pd.DataFrame, n_panels:int=1000, attributes:list[str]=[], max_weights=np.ones(4), n_samples:int=10, objectives:list[Objective]=[], save=None, load=None):
