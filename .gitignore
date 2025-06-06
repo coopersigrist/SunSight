@@ -7,3 +7,5 @@ Simulation/__pycache__/
 Simulation/Projection_Saves/*
 Visualization/__pycache__/
 Models/Linear_Weighted/Linear_Weighted_Results/
+Models/Neat/checkpoints/*
+Models/Neat/trained/*
