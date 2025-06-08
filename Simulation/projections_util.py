@@ -27,21 +27,38 @@ class Projection():
         self.objective_projections = objective_projections
         self.panel_placements = panel_placements
         self.name = name
+        self.objectives = [Objective(name, func) for name, func in objective_projections.items()]
 
     def __str__(self):
         return "<Projection Object> of type: " + self.name
     
-    def add_proj_to_plot(self, ax, objective: str, **kwargs):
-        # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
-        objective_proj = self.objective_projections[objective]
+    #interpolate objective projections to a given interval in the form of a DataFrame
+    def interpolateObjectiveProjections(self, interval=10000, return_df=True):
+        proj = pd.DataFrame(self.objective_projections)
+        new_x = np.arange(0, int(proj.index.max()) + 1, interval)
 
-        #sort the projection keys first
-        sorted_items = sorted(objective_proj.items())  # (x,y)
-        keys, values = zip(*sorted_items)
-        keys = list(keys)
-        values = list(values)
+        proj=proj.sort_index()
+        proj_interp = pd.DataFrame(index=new_x)
+        for objective_name in self.objective_projections.keys():
+            proj_interp[objective_name] = np.interp(new_x, proj.index, proj[objective_name])
 
-        return ax.plot(keys, values, label=self.name, **kwargs)
+        if return_df:
+            return proj_interp
+        else:
+            return {objective_name: proj_interp[objective_name].to_dict() for objective_name in proj_interp.columns}
+    
+    #DEPRECATED
+    # def add_proj_to_plot(self, ax, objective: str, fmt="-", **kwargs):
+    #     # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
+    #     objective_proj = self.objective_projections[objective]
+
+    #     #sort the projection keys first
+    #     sorted_items = sorted(objective_proj.items())  # (x,y)
+    #     keys, values = zip(*sorted_items)
+    #     keys = list(keys)
+    #     values = list(values)
+
+    #     return ax.plot(keys, values, fmt, label=self.name, **kwargs)
     
 class Objective():
 
@@ -317,7 +334,7 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
 
-    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="NEAT Model")
+    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="Multi-Objective Optimized")
     #save
     if save is not None:
         with open(save, 'wb') as dir:
@@ -357,9 +374,9 @@ def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_pane
     print("Creating Continued Projection")
     proj.append(create_future_estimate_projection(zip_df, state_df, n_panels, objectives=objectives))
     print("Creating Greedy Carbon Offset Projection")
-    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Optimized"))
     print("Creating Greedy Average Sun Projection")
-    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Optimized"))
     print("Creating Greedy Black Proportion Projection")
     proj.append(create_greedy_projection(zip_df, n_panels, sort_by='black_prop', objectives=objectives, name="Racial-Equity Aware"))
     print("Creating Greedy Low Median Income Projection")
