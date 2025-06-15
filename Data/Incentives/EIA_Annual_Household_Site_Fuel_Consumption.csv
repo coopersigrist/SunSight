@@ -1,0 +1,33 @@
+Region,2020 Income,Average site energy consumption (per household using the fuel) - Electricity,RSE for average site energy consumption - Electricity 
+West,"Less than $5,000 ",6909,6.91
+West,"$5,000 to $9,999",6103,8.72
+West,"$10,000 to $19,999 ",6295,4.57
+West,"$20,000 to $39,999",7525,2.83
+West,"$40,000 to $59,999",8185,3.47
+West,"$60,000 to $99,999 ",8937,1.67
+West,"$100,000 to $149,999 ",9711,2.65
+West,"$150,000 or more",10786,2.6
+South,"Less than $5,000 ",10685,4.2
+South,"$5,000 to $9,999",10177,4.92
+South,"$10,000 to $19,999 ",11031,2.41
+South,"$20,000 to $39,999",11904,1.71
+South,"$40,000 to $59,999",12711,1.71
+South,"$60,000 to $99,999 ",13659,1.54
+South,"$100,000 to $149,999 ",15383,1.72
+South,"$150,000 or more",18226,2
+Northeast,"Less than $5,000 ",7329,1.14
+Northeast,"$5,000 to $9,999",5815,8.35
+Northeast,"$10,000 to $19,999 ",6002,6.11
+Northeast,"$20,000 to $39,999",6514,2.94
+Northeast,"$40,000 to $59,999",7054,3.96
+Northeast,"$60,000 to $99,999 ",8145,1.91
+Northeast,"$100,000 to $149,999 ",8962,3.31
+Northeast,"$150,000 or more",10395,2.73
+Midwest,"Less than $5,000 ",8528,1.02
+Midwest,"$5,000 to $9,999",7388,7
+Midwest,"$10,000 to $19,999 ",7367,5.32
+Midwest,"$20,000 to $39,999",8502,2.62
+Midwest,"$40,000 to $59,999",8712,2.59
+Midwest,"$60,000 to $99,999 ",10062,1.9
+Midwest,"$100,000 to $149,999 ",11399,3.27
+Midwest,"$150,000 or more",13688,2.58
