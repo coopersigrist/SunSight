@@ -10,7 +10,6 @@ import numpy as np
 
 
 class NeatModel():
-    # TODO Move to neat Util
     def __init__(self, model):
         self.model = model #this model should be a neat-python model
     
