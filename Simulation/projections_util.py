@@ -7,9 +7,26 @@ import pickle
 import os
 import pandas as pd
 import numpy as np
-import math
-from os.path import exists
 
+
+class NeatModel():
+    def __init__(self, model):
+        self.model = model #this model should be a neat-python model
+    
+    '''run the NEAT model given a DataManager as input
+    Returns a dictionary with zip codes and scores
+    {zip code: score}
+    '''
+    def run_network(self, data_manager: DataManager):
+        zip_outputs = {}
+        #TODO:FIX
+        indices = range(data_manager.num_zips)
+
+        for i in indices:
+            score = self.model.activate(data_manager.network_inputs(i))
+            zip_code = data_manager.combined_df.loc[i, 'region_name'] #find zip code from index
+            zip_outputs[zip_code] = score
+        return zip_outputs
 
 # Projection Object that will be used to store the projections of different solar siting strategies
 class Projection():
