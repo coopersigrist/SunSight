@@ -6,8 +6,13 @@ from Visualization.plot_util import *
 from Data.data_load_util import *
 from Simulation.projections_util import Projection, Objective, create_paper_objectives, create_equity_objectives
 
+#aesthetic constants
+MARKER_SIZE = 8
+LINE_WIDTH = 3
+FONT_SIZE = 20
+
 #plot multiple projections over a single objective
-def plot_projections(projections:list[Projection], objective:str="Carbon Offset", interval=100000, panel_estimations=None, net_zero_horizontal=False, fontsize=20, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, color_palette = sns.color_palette("Set2"), **kwargs):
+def plot_projections(projections:list[Projection], objective:str="Carbon Offset", interval=100000, panel_estimations=None, net_zero_horizontal=False, fontsize=FONT_SIZE, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, color_palette = sns.color_palette("Set2"), **kwargs):
     # Some default sizing and styling
     # print(plt.style.available)
     # plt.style.use('seaborn-v0_8')
@@ -27,14 +32,14 @@ def plot_projections(projections:list[Projection], objective:str="Carbon Offset"
     if net_zero_horizontal and 'Status-Quo' in projections:
         two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
 
-    interp_projections = {projection.name: projection.interpolateObjectiveProjections(interval=interval, return_df=False) for projection in projections}
+    interp_projections = {projection.name: projection.interpolateIntervalObjectiveProjections(interval=interval, return_df=False) for projection in projections}
 
     ax = plt.subplot()
     ax.set_prop_cycle(cycler(color=color_palette)) #color palette
 
     for projection, fmt in zip(projections, fmts):
         interp_projection = interp_projections[projection.name][objective]
-        ax.plot(interp_projection.keys(), interp_projection.values(), fmt, label=projection.name, linewidth=3, markersize=8, alpha=0.9, **kwargs)
+        ax.plot(interp_projection.keys(), interp_projection.values(), fmt, label=projection.name, linewidth=LINE_WIDTH, markersize=MARKER_SIZE, alpha=0.9, **kwargs)
         # projection.add_proj_to_plot(ax=ax, objective=objective, linewidth=3, markersize=8, alpha=0.9, fmt=marker, **kwargs)
 
     # plt.locator_params(axis='x', nbins=8) 
@@ -72,7 +77,7 @@ def plot_projections(projections:list[Projection], objective:str="Carbon Offset"
     plt.show()
 
 #ratio comparison projection
-def plot_comparison_ratio(base_projection:Projection, comparison_projection:Projection, base_key, comparison_key, objectives:list[Objective] = create_paper_objectives(), interval = 100000, fontsize=20, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], color_palette = sns.color_palette("deep")):
+def plot_comparison_ratio(base_projection:Projection, comparison_projection:Projection, base_key, comparison_key, objectives:list[Objective] = create_paper_objectives(), interval = 100000, fontsize=FONT_SIZE, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], color_palette = sns.color_palette("deep")):
     
     plt.style.use("seaborn-v0_8")
     font = {'family' : 'DejaVu Sans',
@@ -84,8 +89,8 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
     #calculate ratios between the base and the comparison
     ratios = pd.DataFrame()
-    comp = comparison_projection.interpolateObjectiveProjections(interval=interval)
-    base = base_projection.interpolateObjectiveProjections(interval=interval)
+    comp = comparison_projection.interpolateIntervalObjectiveProjections(interval=interval)
+    base = base_projection.interpolateIntervalObjectiveProjections(interval=interval)
 
     #calculate ratios
     for objective in objectives:
@@ -100,7 +105,7 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
     for key, fmt in zip([objectives.name for objectives in objectives], fmts):
         #use x values from the ratios list
-        ax.plot(ratios.index.tolist(), np.array(ratios[key]), fmt, label=key, linewidth=3, markersize=8, alpha=0.9)
+        ax.plot(ratios.index.tolist(), np.array(ratios[key]), fmt, label=key, linewidth=LINE_WIDTH, markersize=MARKER_SIZE, alpha=0.9)
     plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
 
     #show baseline
@@ -119,41 +124,54 @@ def plot_comparison_ratio(base_projection:Projection, comparison_projection:Proj
 
 
 #bar graph version of ratio comparison, compares many different projections
-def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000, fontsize = 15, color_palette = sns.color_palette("muted")):
+def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000, fontsize = FONT_SIZE, color_palette = sns.color_palette("muted"), hatches=["\\","/","x"], hatch_size = 0.3):
+    plt.style.use("seaborn-v0_8")
+    font = {'family' : 'DejaVu Sans',
+    'weight' : 'bold',
+    'size'   : fontsize}
+
+    matplotlib.rc('font', **font)
+    plt.rcParams['hatch.linewidth'] = hatch_size
+
     #get the last value for all objectives for all methods
     results = [] #ex: array of [lexicase results, tournament results etc.]
-    base = pd.DataFrame(base_projection.objective_projections)
+    base = base_projection.interpolateObjectiveProjections(panel_count)
+    
 
     for projection in all_projections:
         result = [] #array of [CO, EG, RE, IE]
-        proj = pd.DataFrame(projection.objective_projections)
+        proj = projection.interpolateObjectiveProjections(panel_count)
         for objective in objectives:
             objective_name = objective.name
-            result.append(proj[objective_name][panel_count] / base[objective_name][panel_count]) #get the ratio to the base key
+            result.append(proj[objective_name] / base[objective_name]) #get the ratio to the base key
         results.append(result)
 
     # Configuration for the bar graph
     x = np.arange(len(objectives)) # X positions for the groups
-    width = 0.1  # Width of each bar
+    width = 0.25  # Width of each bar
 
     # Create the plot
+    bar_palette = color_palette[1:]
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.set_prop_cycle(cycler(color=color_palette)) #color palette
+    ax.set_prop_cycle(cycler(color=bar_palette)) #color palette
 
     # Add bars for each method
     for i, proj in enumerate(all_projections):
-        ax.bar(x + i * width, results[i], width, label=proj.name)
+        ax.bar(x + i * width, results[i], width, label=proj.name, hatch=hatches[i])
     
     #show baseline
-    plt.axhline(y=1, color='b', linestyle='--', linewidth=1) 
+    baseline_color = color_palette[0]
+    plt.axhline(y=1, color=baseline_color, linestyle='--', linewidth=3) 
 
     # Add labels, title, and legend
-    # ax.set_xlabel('Objectives')
-    ax.set_ylabel(f'Fitness Ratio to {base_projection.name}', fontsize=fontsize)
+    # ax.set_xlabel(f'{panel_count} Panels', fontsize=fontsize, labelpad=20)
+    ax.set_ylabel(f'Fitness (Ratio to Baseline)', fontsize=fontsize)
     # ax.set_title('Fitness of Selection Methods for all Objectives')
     ax.set_xticks(x + width*(len(all_projections)-1)/2)
-    ax.set_xticklabels([objectives.name for objectives in objectives], fontsize=fontsize/1.5)
-    ax.legend(fontsize=fontsize/1.5, loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4)
+
+    wrapped_names = [objective.name.replace(" ","\n") for objective in objectives]
+    ax.set_xticklabels(wrapped_names, fontsize=fontsize)
+    ax.legend(fontsize=fontsize/1.3, loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4)
     # plt.ylim(0, 2) #set the y axis bounds
 
     # Show the plot
@@ -161,7 +179,7 @@ def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[P
     plt.show()
 
 #bar graph equity comparison over panel counts
-def plot_equity_comparison(projection:Projection, objectives:list[Objective] = create_equity_objectives(), panel_counts = [0,100000,1000000], fontsize = 15, color_palette = sns.color_palette("Greens")):
+def plot_equity_comparison(projection:Projection, objectives:list[Objective] = create_equity_objectives(), panel_counts = [0,100000,1000000], fontsize = FONT_SIZE, color_palette = sns.color_palette("Greens")):
     results = [] #arr of equity objective values for different panel counts of a single projection
     proj = pd.DataFrame(projection.objective_projections)
 

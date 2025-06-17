@@ -33,7 +33,7 @@ class Projection():
         return "<Projection Object> of type: " + self.name
     
     #interpolate objective projections to a given interval in the form of a DataFrame
-    def interpolateObjectiveProjections(self, interval=10000, return_df=True):
+    def interpolateIntervalObjectiveProjections(self, interval=10000, return_df=True):
         proj = pd.DataFrame(self.objective_projections)
         new_x = np.arange(0, int(proj.index.max()) + 1, interval)
 
@@ -47,6 +47,16 @@ class Projection():
         else:
             return {objective_name: proj_interp[objective_name].to_dict() for objective_name in proj_interp.columns}
     
+    #interpolate a single value
+    def interpolateObjectiveProjections(self, num_panels):
+        proj = pd.DataFrame(self.objective_projections)
+        proj_interp = {}
+        proj = proj.sort_index()
+        for objective_name in self.objective_projections.keys():
+            proj_interp[objective_name] = np.interp(num_panels, proj.index, proj[objective_name])
+
+        return proj_interp
+        
     #DEPRECATED
     # def add_proj_to_plot(self, ax, objective: str, fmt="-", **kwargs):
     #     # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
@@ -192,9 +202,9 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
     for interval in tqdm(range(intervals - 1)):
-        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/intervals) for zip_code in placement_ratio}
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/(intervals-1)) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].update({(n_panels) * (interval+1)/intervals : obj.calc(zip_df, placed_panels)})
+            objective_projections[obj.name].update({(n_panels) * (interval+1)/(intervals-1) : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
@@ -327,7 +337,7 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
 
-    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="Multi-Objective Optimized")
+    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="EVA")
     #save
     if save is not None:
         with open(save, 'wb') as dir:
