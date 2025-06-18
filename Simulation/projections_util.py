@@ -249,6 +249,23 @@ def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metri
 
     return greedy_proj
 
+#given an array of panels, create projection at the specific point
+def create_projection_from_panels(zip_df, panel_placements:dict, objectives:list[Objective]=[], name="Arbitrary Placement"):
+    if len(panel_placements) != len(zip_df):
+        print("warning: panel dict length does not match zip_df length")
+
+    # Initialize the projections dictionary
+    projections = init_objective_projs(zip_df,objectives)
+
+    num_panels = sum(panel_placements.values()) #total panels
+
+    for objective in objectives:
+        projections[objective.name][num_panels] = objective.calc(zip_df, panel_placements)
+
+    greedy_proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
+
+    return greedy_proj
+
 # Given a panel_placements dict, gets the ZIP code of the first n placed panel.
 def get_zips_of_first_nth_panels(n_panels:int, panel_placements:dict) -> dict:
     
