@@ -250,7 +250,7 @@ def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metri
     return greedy_proj
 
 #given an array of panels, create projection at the specific point
-def create_projection_from_panels(zip_df, panel_placements:dict, objectives:list[Objective]=[], name="Arbitrary Placement"):
+def create_projection_from_panel_assignment(zip_df, panel_placements:dict, objectives:list[Objective]=[], name="Panel Assignment"):
     if len(panel_placements) != len(zip_df):
         print("warning: panel dict length does not match zip_df length")
 
@@ -262,9 +262,24 @@ def create_projection_from_panels(zip_df, panel_placements:dict, objectives:list
     for objective in objectives:
         projections[objective.name][num_panels] = objective.calc(zip_df, panel_placements)
 
-    greedy_proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
+    proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
+    return proj
 
-    return greedy_proj
+
+#mixed integer linear programming panel assignment projection
+def create_milp_projection(data_manager, n_panels=1000, model=None, objectives:list[Objective]=[], save=None, load=None):
+    if load is not None and os.path.exists(load):
+        print("Loading from saved")
+        with open(load, 'rb') as dir:
+            return pickle.load(dir)
+        
+    panel_placements = model.get_placements(data_manager, objectives=create_paper_objectives(), num_panels=n_panels)
+    proj = create_projection_from_panel_assignment(data_manager.combined_df, panel_placements=panel_placements, objectives=objectives, name="MILP Projection")
+    #save
+    if save is not None:
+        with open(save, 'wb') as dir:
+            pickle.dump(proj, dir, pickle.HIGHEST_PROTOCOL)
+    return proj
 
 # Given a panel_placements dict, gets the ZIP code of the first n placed panel.
 def get_zips_of_first_nth_panels(n_panels:int, panel_placements:dict) -> dict:
