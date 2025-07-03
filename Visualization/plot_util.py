@@ -670,58 +670,60 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     plt.tight_layout()
     plt.show()
 
-def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, save_dir_prefix=None, show=True, save_name=None, **kwargs):
 
-    # Some default sizing and styling
-    plt.style.use('seaborn-v0_8')
-    font = {'family' : 'DejaVu Sans',
-    'weight' : 'bold',
-    'size'   : fontsize}
-    matplotlib.rc('font', **font)
+#MOVED TO projection_plots.py
+# def plot_projections(projections:list, objective:str="Carbon Offset", panel_estimations=None, net_zero_horizontal=False, fontsize=30, fmts=["-X", "-H", "o-", "D-", "v-", "-8", "-p"], ylabel=None, save_dir_prefix=None, show=True, save_name=None, **kwargs):
 
-    # Adds a horizontal line at the point where Status-Quo is expected to be when net-zero carbon emissions (479000 * 3 panels) is reached.
-    if net_zero_horizontal and 'Status-Quo' in projections:
-        two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
+#     # Some default sizing and styling
+#     plt.style.use('seaborn-v0_8')
+#     font = {'family' : 'DejaVu Sans',
+#     'weight' : 'bold',
+#     'size'   : fontsize}
+#     matplotlib.rc('font', **font)
 
-    ax = plt.subplot()
-    for projection, marker in zip(projections, fmts):
-        projection.add_proj_to_plot(ax=ax, objective=objective, **kwargs)
+#     # Adds a horizontal line at the point where Status-Quo is expected to be when net-zero carbon emissions (479000 * 3 panels) is reached.
+#     if net_zero_horizontal and 'Status-Quo' in projections:
+#         two_mill_continued = np.array(projections['Status-Quo'])[479000 * 3]
 
-    plt.locator_params(axis='x', nbins=8) 
-    plt.locator_params(axis='y', nbins=8) 
-    plt.yticks(fontsize=fontsize/(1.2))
-    plt.xticks(fontsize=fontsize/(1.2))
+#     ax = plt.subplot()
+#     for projection, marker in zip(projections, fmts):
+#         projection.add_proj_to_plot(ax=ax, objective=objective, **kwargs)
 
-    # get ranges of the plots axes
-    xmin, xmax, ymin, ymax = plt.axis()
+#     plt.locator_params(axis='x', nbins=8) 
+#     plt.locator_params(axis='y', nbins=8) 
+#     plt.yticks(fontsize=fontsize/(1.2))
+#     plt.xticks(fontsize=fontsize/(1.2))
 
-    ''' TODO test'''
-    if panel_estimations is not None:
-        for label, value in panel_estimations:
-            plt.vlines(value, ymin+ymax/18, ymax, colors='darkgray' , linestyles='dashed', linewidth=2, alpha=0.7)
-            plt.text(value - (xmax-xmin)/23, ymin + ymax/80, label, alpha=0.7, fontsize=25)
+#     # get ranges of the plots axes
+#     xmin, xmax, ymin, ymax = plt.axis()
+
+#     ''' TODO test'''
+#     if panel_estimations is not None:
+#         for label, value in panel_estimations:
+#             plt.vlines(value, ymin+ymax/18, ymax, colors='darkgray' , linestyles='dashed', linewidth=2, alpha=0.7)
+#             plt.text(value - (xmax-xmin)/23, ymin + ymax/80, label, alpha=0.7, fontsize=25)
     
-    if net_zero_horizontal:
-        plt.hlines(two_mill_continued, 0, xmax, colors='black' , linestyles='dashed', linewidth=2, alpha=0.5)
-        plt.text(0, two_mill_continued*1.1, "Continued trend at\nNet-zero prediction", alpha=0.95, fontsize=18, color='black')
+#     if net_zero_horizontal:
+#         plt.hlines(two_mill_continued, 0, xmax, colors='black' , linestyles='dashed', linewidth=2, alpha=0.5)
+#         plt.text(0, two_mill_continued*1.1, "Continued trend at\nNet-zero prediction", alpha=0.95, fontsize=18, color='black')
 
     
 
-    plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
-    if ylabel is None:
-        plt.ylabel(objective, fontsize=fontsize, labelpad=20)
-    else:
-        plt.ylabel(ylabel, fontsize=fontsize, labelpad=20)
+#     plt.xlabel("Additional Panels Built", fontsize=fontsize, labelpad=20)
+#     if ylabel is None:
+#         plt.ylabel(objective, fontsize=fontsize, labelpad=20)
+#     else:
+#         plt.ylabel(ylabel, fontsize=fontsize, labelpad=20)
 
-    plt.legend(fontsize=fontsize/1.5)
-    # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
-    #       ncol=1, shadow=True, fontsize=fontsize/1.4)
-    plt.tight_layout()
-    if show:
-        plt.show()
+#     plt.legend(fontsize=fontsize/1.5)
+#     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5),
+#     #       ncol=1, shadow=True, fontsize=fontsize/1.4)
+#     plt.tight_layout()
+#     if show:
+#         plt.show()
 
-    if save_dir_prefix is not None:
-        plt.savefig(save_dir_prefix+"Simulation/Projection_Plots/"+save_name+'.png')
+#     if save_dir_prefix is not None:
+#         plt.savefig(save_dir_prefix+"Simulation/Projection_Plots/"+save_name+'.png')
 
 
 

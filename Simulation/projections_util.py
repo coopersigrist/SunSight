@@ -27,14 +27,48 @@ class Projection():
         self.objective_projections = objective_projections
         self.panel_placements = panel_placements
         self.name = name
+        self.objectives = [Objective(name, func) for name, func in objective_projections.items()]
 
     def __str__(self):
         return "<Projection Object> of type: " + self.name
     
-    def add_proj_to_plot(self, ax, objective: str, **kwargs):
-        # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
-        objective_proj = self.objective_projections[objective]
-        return ax.plot(objective_proj.keys(), objective_proj.values(), label=self.name, **kwargs)
+    #interpolate objective projections to a given interval in the form of a DataFrame
+    def interpolateIntervalObjectiveProjections(self, interval=10000, return_df=True):
+        proj = pd.DataFrame(self.objective_projections)
+        new_x = np.arange(0, int(proj.index.max()) + 1, interval)
+
+        proj=proj.sort_index()
+        proj_interp = pd.DataFrame(index=new_x)
+        for objective_name in self.objective_projections.keys():
+            proj_interp[objective_name] = np.interp(new_x, proj.index, proj[objective_name])
+
+        if return_df:
+            return proj_interp
+        else:
+            return {objective_name: proj_interp[objective_name].to_dict() for objective_name in proj_interp.columns}
+    
+    #interpolate a single value
+    def interpolateObjectiveProjections(self, num_panels):
+        proj = pd.DataFrame(self.objective_projections)
+        proj_interp = {}
+        proj = proj.sort_index()
+        for objective_name in self.objective_projections.keys():
+            proj_interp[objective_name] = np.interp(num_panels, proj.index, proj[objective_name])
+
+        return proj_interp
+        
+    #DEPRECATED
+    # def add_proj_to_plot(self, ax, objective: str, fmt="-", **kwargs):
+    #     # Takes a matplotlib Axes object, ax, and adds the projection of a given objective to it
+    #     objective_proj = self.objective_projections[objective]
+
+    #     #sort the projection keys first
+    #     sorted_items = sorted(objective_proj.items())  # (x,y)
+    #     keys, values = zip(*sorted_items)
+    #     keys = list(keys)
+    #     values = list(values)
+
+    #     return ax.plot(keys, values, fmt, label=self.name, **kwargs)
     
 class Objective():
 
@@ -168,9 +202,9 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     
     # Calculates a new batch of added panels for each of the intervals (1/interval of n_panels)
     for interval in tqdm(range(intervals - 1)):
-        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/intervals) for zip_code in placement_ratio}
+        placed_panels = {zip_code:(placement_ratio[zip_code]*n_panels* (interval+1)/(intervals-1)) for zip_code in placement_ratio}
         for obj in objectives:
-            objective_projections[obj.name].update({(n_panels) * (interval+1)/intervals : obj.calc(zip_df, placed_panels)})
+            objective_projections[obj.name].update({(n_panels) * (interval+1)/(intervals-1) : obj.calc(zip_df, placed_panels)})
     
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
@@ -214,6 +248,38 @@ def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metri
     greedy_proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
 
     return greedy_proj
+
+#given an array of panels, create projection at the specific point
+def create_projection_from_panel_assignment(zip_df, panel_placements:dict, objectives:list[Objective]=[], name="Panel Assignment"):
+    if len(panel_placements) != len(zip_df):
+        print("warning: panel dict length does not match zip_df length")
+
+    # Initialize the projections dictionary
+    projections = init_objective_projs(zip_df,objectives)
+
+    num_panels = sum(panel_placements.values()) #total panels
+
+    for objective in objectives:
+        projections[objective.name][num_panels] = objective.calc(zip_df, panel_placements)
+
+    proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
+    return proj
+
+
+#mixed integer linear programming panel assignment projection
+def create_milp_projection(data_manager, n_panels=1000, model=None, objectives:list[Objective]=[], save=None, load=None):
+    if load is not None and os.path.exists(load):
+        print("Loading from saved")
+        with open(load, 'rb') as dir:
+            return pickle.load(dir)
+        
+    panel_placements = model.get_placements(data_manager, objectives=create_paper_objectives(), num_panels=n_panels)
+    proj = create_projection_from_panel_assignment(data_manager.combined_df, panel_placements=panel_placements, objectives=objectives, name="MILP Projection")
+    #save
+    if save is not None:
+        with open(save, 'wb') as dir:
+            pickle.dump(proj, dir, pickle.HIGHEST_PROTOCOL)
+    return proj
 
 # Given a panel_placements dict, gets the ZIP code of the first n placed panel.
 def get_zips_of_first_nth_panels(n_panels:int, panel_placements:dict) -> dict:
@@ -303,7 +369,7 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
     zip_values = model.run_network(data_manager)
     new_df['value'] = new_df['region_name'].map(zip_values)
 
-    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="NEAT Model")
+    proj = create_greedy_projection(zip_df=new_df, n_panels=n_panels, sort_by='value', objectives=objectives, name="EVA")
     #save
     if save is not None:
         with open(save, 'wb') as dir:
@@ -343,9 +409,9 @@ def create_projections(zip_df:pd.DataFrame, state_df:pd.DataFrame = None, n_pane
     print("Creating Continued Projection")
     proj.append(create_future_estimate_projection(zip_df, state_df, n_panels, objectives=objectives))
     print("Creating Greedy Carbon Offset Projection")
-    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='carbon_offset_metric_tons_per_panel', objectives=objectives, name="Carbon Optimized"))
     print("Creating Greedy Average Sun Projection")
-    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Aware"))
+    proj.append(create_greedy_projection(zip_df, n_panels, sort_by='yearly_sunlight_kwh_kw_threshold_avg', objectives=objectives, name="Energy Optimized"))
     print("Creating Greedy Black Proportion Projection")
     proj.append(create_greedy_projection(zip_df, n_panels, sort_by='black_prop', objectives=objectives, name="Racial-Equity Aware"))
     print("Creating Greedy Low Median Income Projection")
