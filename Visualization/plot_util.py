@@ -21,6 +21,7 @@ from branca.element import Template, MacroElement
 from branca.colormap import linear
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
+from math import log10, floor
 
 def fit_dat_and_plot(x, y, deg, label="", label_plot=False, log=False):
 
@@ -365,41 +366,41 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
 
     fig.add_to(m)
 
-    min_value = round(np.min(stats_df[key]), 2)
-    max_value = round(np.max(stats_df[key]),2)
+    min_value = round(np.min(stats_df[key]), -int(floor(log10(abs(np.min(stats_df[key]))))))
+    max_value = round(np.max(stats_df[key]),-int(floor(log10(abs(np.max(stats_df[key]))))))
     palette = ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"]
     palette = get_colorbrewer_palette(fill_color, bins=7)
 
     template = f"""
         {{% macro html(this, kwargs) %}}
 
-        <!-- Title -->
-        <div style="
-            position: fixed;
-            left: 50px;
-            bottom: 90px;
-            z-index:9999;
-            font-size: 26px;
-            font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
-            font-weight: bold;
-            color: #222;
-            background: rgba(255,255,255,0.85);
-            padding: 5px 12px 2px 12px;
-            border-radius: 8px 8px 0 0;
-            border: 2px solid #AAA;
-            border-bottom: none;
-            box-shadow: 2px 2px 6px rgba(50,50,50,0.18);
-            ">
-        {legend_name}
-        </div>
+        # <!-- Title -->
+        # <div style="
+        #     position: fixed;
+        #     left: 50px;
+        #     bottom: 90px;
+        #     z-index:9999;
+        #     font-size: 26px;
+        #     font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
+        #     font-weight: bold;
+        #     color: #222;
+        #     background: rgba(255,255,255,0.85);
+        #     padding: 5px 12px 2px 12px;
+        #     border-radius: 8px 8px 0 0;
+        #     border: 2px solid #AAA;
+        #     border-bottom: none;
+        #     box-shadow: 2px 2px 6px rgba(50,50,50,0.18);
+        #     ">
+        # {legend_name}
+        # </div>
 
         <!-- Box and Colorbar -->
         <div style="
             position: fixed; 
             left: 50px; 
             bottom: 50px;
-            width: 420px;
-            height: 40px;
+            width: 840px;
+            height: 80px;
             background: white;
             border: 2px solid #aaa;
             border-radius: 0 0 10px 10px;
@@ -411,19 +412,19 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
             opacity: 0.96;
         ">
             <span style="
-                font-size: 18px;
+                font-size: 25px;
                 font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
                 color: #444;
                 font-weight: bold;
                 padding-left: 15px;
-                padding-right: 10px;
+                padding-right: 15px;
                 min-width: 45px;
                 text-align: right;
                 ">
             {min_value}
             </span>
 
-            <svg width="320" height="22" style="margin: 0 10px; flex-shrink:1;">
+            <svg width="740" height="70" style="margin: 0 10px; flex-shrink:1;">
             <defs>
                 <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%"   stop-color="{palette[0]}" />
@@ -435,16 +436,16 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
                 <stop offset="100%" stop-color="{palette[6]}" />
                 </linearGradient>
             </defs>
-            <rect x="0" y="0" width="320" height="22" fill="url(#grad1)" stroke="#888" stroke-width="1"/>
+            <rect x="0" y="5" width="740" height="60" fill="url(#grad1)" stroke="#888" stroke-width="1"/>
             </svg>
 
             <span style="
-                font-size: 18px;
+                font-size: 25px;
                 font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
                 color: #444;
                 font-weight: bold;
                 padding-right: 15px;
-                padding-left: 10px;
+                padding-left: 5px;
                 min-width: 45px;
                 text-align: left;
                 ">

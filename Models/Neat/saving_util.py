@@ -23,7 +23,7 @@ def get_unique_filename(file_path):
     return str(unique_path)
 
 #saves the model in a directory dependent on the day
-def save_model(model, results = None, model_name="NEAT_model.pkl", results_name="results.pkl", base_directory="Neat/models"):
+def save_model(model, results = None, model_name="NEAT_model.pkl", results_name="results.pkl", base_directory="NEAT/trained"):
     #create a new folder for the current date
     current_date = datetime.now()
     directory = os.path.join(base_directory, current_date.strftime("%m-%d-%y"))
@@ -50,7 +50,7 @@ def save_model(model, results = None, model_name="NEAT_model.pkl", results_name=
         if results is not None:
             pickle.dump(results, f)
 
-def load_latest(directory = "NEAT/models", model_name="NEAT_model.pkl", results_name=""):
+def load_latest(directory = "NEAT/trained", model_name="NEAT_model.pkl", results_name=""):
     folders = [f for f in os.listdir(directory) if os.path.isdir(os.path.join(directory, f))]
 
     #parse folder names for dates

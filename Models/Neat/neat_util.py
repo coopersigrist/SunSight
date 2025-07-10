@@ -323,9 +323,9 @@ if __name__=="__main__":
     # print("Energy Generation score: ",data_manager.score(cv_order, 'energy_generation', NUM_PANELS, train=True))
     
     # #save output into a pickle
-    # with open('Neat/models/NEAT_model.pkl', 'wb') as f:
+    # with open('NEAT/trained/NEAT_model.pkl', 'wb') as f:
     #     pickle.dump(winner_net, f)
 
     # #save the best scores
-    # with open('Neat/models/fitness_data.pkl', 'wb') as f:
+    # with open('NEAT/trained/fitness_data.pkl', 'wb') as f:
     #     pickle.dump(best_scores, f)

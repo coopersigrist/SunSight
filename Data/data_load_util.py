@@ -1,9 +1,7 @@
 import pandas as pd
 from os.path import exists
 import numpy as np
-import json
 import pgeocode
-import math
 from functools import reduce
 
 # Simple convertion from string with commas to float -- used by EIA data load
@@ -322,7 +320,7 @@ def make_state_dataset(df, energy_keys=None, stats_keys=None, load_dir="Clean_Da
     
     if energy_keys == None:
         energy_keys = ['Clean', 'Bioenergy', 'Coal','Gas','Fossil','Solar','Hydro','Nuclear','Wind','Other Renewables','Other Fossil','Total Generation']
-        stats_keys= ["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line","black_population","white_population","asian_population","native_population", "black_prop","white_prop", "asian_prop","yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", 'carbon_offset_kg_per_panel','carbon_offset_kg']
+        stats_keys= ["Total_Population","total_households","Median_income","per_capita_income","households_below_poverty_line", "yearly_sunlight_kwh_kw_threshold_avg", "existing_installs_count", "carbon_offset_metric_tons", "carbon_offset_metric_tons_per_panel","carbon_offset_metric_tons_per_capita" , 'existing_installs_count_per_capita',  "existing_installs_count_per_capita", "panel_utilization", 'carbon_offset_kg_per_panel','carbon_offset_kg']
     
     election_df = load_election_data().drop('state', axis=1)
     energy_df = load_state_energy_dat(keys=energy_keys, total=False)
@@ -334,8 +332,15 @@ def make_state_dataset(df, energy_keys=None, stats_keys=None, load_dir="Clean_Da
         # Returns just the means over the ZIPs of a state, change mean to std or median to change
         vals = stats_for_states(df=df.drop(['Latitude', 'Longitude'], axis=1), key=key)[agg].values
         stats_df[key] = vals
+    
+    for demo in ['black', 'white', 'asian', 'hispanic', 'native']:
+        stats_df[demo+'_population'] = stats_for_states(df=df.drop(['Latitude', 'Longitude'], axis=1), key=demo+'_population')['sum'].values
+        stats_df[demo+'_prop'] = stats_df[demo+'_population'] / np.sum(df['Total_Population'])
 
     combined_state_df = pd.concat([energy_df, election_df, stats_df, incentives_df], axis=1)
+
+
+
 
     combined_state_df['estimated_install_count'] = combined_state_df['Solar'] * 1000 / combined_state_df['yearly_sunlight_kwh_kw_threshold_avg']
 
