@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 import math
+from itertools import product
 from os.path import exists
 
 
@@ -147,10 +148,22 @@ def init_objective_projs(zip_df, objectives:list[Objective]):
     objectives_proj = {obj.name : {0: obj.calc(zip_df, placed_panel_init)} for obj in objectives}
 
     return objectives_proj
+
+
+# initializes a projection dict for each objective from a list of objectives
+def init_objective_projs(zip_df, objectives:list[Objective]):
+
+    placed_panel_init = {zip_code:0 for zip_code in zip_df['region_name']}
+    objectives_proj = {obj.name : {0: obj.calc(zip_df, placed_panel_init)} for obj in objectives}
+
+    return objectives_proj
     
+
+
 
 # Creates a projection of carbon offset if the current ratio of panel locations remain the same 
 # allowing partial placement of panels in zips and not accounting in the filling of zip codes.
+#NOTE: this status quo is deprecated
 def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Objective]=[], intervals=10):
 
     total_panels = np.sum(zip_df['existing_installs_count'])
@@ -176,7 +189,7 @@ def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Obje
 
     return sq_projection
 
-# Creates a projection based on the ongoing installation data from SEIA TODO
+# Creates a projection based on the ongoing installation data from SEIA 
 def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objectives:list[Objective]=[], intervals=10):
     '''
     This estimate of future installations first divides the potential added panels into proportions added to each State based on EIA data of added Capacity by State (see Data/EIA/details.md)
@@ -209,7 +222,43 @@ def create_future_estimate_projection(zip_df, state_df, n_panels:int=1000, objec
     estimated_projection = Projection(objective_projections, placed_panels, name="Estimated Future Installations")
 
     return estimated_projection
-    
+
+#get the 2025 baseline
+def get_baseline_2025(zips_df:pd.DataFrame, state_df:pd.DataFrame, save = None, load=None):
+    '''
+    Given from: https://seia.org/research-resources/solar-industry-research-data/
+    Solar capacity 2017: 10,619.8 MW
+    Solar capacity 2025: 41700.1 MW
+
+    Given from: https://www.statista.com/statistics/1420008/solar-energy-residential-systems-installed-united-states/
+    Number of installations in 2017: 1.6 million
+
+    Given from: our dataset/code
+    Number of existing installations in the dataset: 674914
+
+    Energy capacity per solar installation (derived from seia): solar capacity in 2017 / number of installations in 2017
+    10619.8 MW/1.6M = 6637.375W per installation
+
+    new installations added from 2017 - 2025: solar capacity difference / energy capacity per installation
+    (41700.1 MW-10619.8 MW)/6637.375 = 4.68 million installations
+
+    Future estimation baseline panels: number of new installations * proportion of panels covered by dataset
+    4.68 million * 674914/1.6 million = 1973556 new installs
+    '''
+    if load is not None and os.path.exists(load):
+        print("Loading from previous calculations...")
+        with open(load, 'rb') as dir:
+            return pickle.load(dir)
+
+    installations2025 = 1973556
+    projection2025 = create_future_estimate_projection(zips_df, state_df, installations2025, create_paper_objectives(), intervals=2)
+    # baseline2025 = {key: projection2025.objective_projections[key][installations2025] for key in projection2025.objective_projections.keys()}
+
+    if save is not None:
+        with open(save, 'wb') as dir:
+            pickle.dump(projection2025, dir, pickle.HIGHEST_PROTOCOL)
+    return projection2025
+
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
 # Returns the Carbon offset for each amount of panels added
 def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
@@ -481,6 +530,53 @@ def linear_weighted_gridsearch(zip_df:pd.DataFrame, n_panels:int=1000, attribute
 
     return scores_df
 
+
+#gridsearch different weight combinations
+def milp_gridsearch(data_manager, model=None, n_panels:int=1000, max_weights=np.ones(4), n_samples:int=10, objectives:list[Objective]=[], save=None, load=None):
+    if load is not None and exists(load):
+       return pd.read_csv(load)
+    
+    zip_df = data_manager.combined_df
+
+    #get weight combinations
+
+    values = [np.round(np.linspace(1.0, max_weights[i], n_samples), 2) for i in range(len(max_weights))] #get all weight values for each objective
+
+    unique_weights = set()
+
+    for w in product(*values):
+        w_arr = np.array(w)
+        min_val = np.min(w_arr)
+        norm = np.round(w_arr / min_val, 5)  # Normalize by min to capture relative scale
+        unique_weights.add(tuple(norm.tolist()))
+    unique_weights = list(unique_weights)
+    
+    print("# weights", len(unique_weights))
+    print("weights: ", unique_weights[:10])
+
+
+    all_scores = np.zeros((len(unique_weights), 2 * len(objectives))) #scores are stored in a table, where each row has the both weights and obj scores
+
+    for i in tqdm(range(len(unique_weights))):
+        weights = unique_weights[i]
+        model.set_weights(weights)
+        
+        panel_placements = model.get_placements(data_manager, objectives=objectives, num_panels=n_panels)
+        # panel_placements = create_weighted_proj(zip_df, n_panels=n_panels, attributes=attributes, objectives=objectives, weights=weights).panel_placements
+        obj_scores = [obj.calc(zip_df, panel_placements) for obj in objectives]
+        all_scores[i] = np.append(list(weights), obj_scores)
+    
+    print(all_scores)
+    scores_df = pd.DataFrame()
+
+    for i, key in enumerate([f"{obj.name} weight" for obj in objectives] + [obj.name for obj in objectives]):
+        scores_df[key] = all_scores.T[i]
+    print(scores_df)
+
+    if save is not None:   
+        scores_df.to_csv(save, header=[f"{obj.name} weight" for obj in objectives] + [obj.name for obj in objectives], index=False)
+
+    return scores_df
 # if __name__ == '__main__':
 #     # TEST
 #     zip_df = make_dataset(remove_outliers=True)

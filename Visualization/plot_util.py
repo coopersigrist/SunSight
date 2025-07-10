@@ -614,7 +614,7 @@ def get_pareto_subset(eval_df, obj1, obj2, save=None, load=None):
 
 # Creates a pareto-front plot based on 2 objectives stored in eval_df
 # others are other strategies to plot alongside the main bulk for comparison
-def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Generation':1, 'Racial Equity':1, 'Income Equity':1}, load=None):
+def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Carbon Offset': 1, 'Energy Potential':1, 'Racial Equity':1, 'Income Equity':1}, load=None):
     
     pareto_optimal_df = get_pareto_subset(eval_df, obj1, obj2, save=load, load=load)
     pareto_optimal_df = pareto_optimal_df.sort_values(obj1, inplace=False, ignore_index=True) # so they plot in order from lowest to highest x value
@@ -638,7 +638,8 @@ def create_pareto_front_plots(eval_df, obj1, obj2, fit=2, others=[], scale={'Car
     plt.vlines(1, ymin, ymax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
     plt.hlines(1, xmin, xmax, colors=['gray'], linestyles='dashed', linewidth=3, zorder = -1, alpha =0.5)
 
-    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All Linear Weights', s=s, alpha=0.3, zorder=0)
+    print(len(eval_df[obj1]/scale[obj1]))
+    plt.scatter(eval_df[obj1]/scale[obj1], eval_df[obj2]/scale[obj2], color='orange', label='All MILP Solutions', s=s, alpha=0.3, zorder=0)
     plt.xlabel(obj1 + " (Ratio to "+scale['label']+")", labelpad=10, fontsize=15)
     plt.ylabel(obj2 + " (Ratio to  "+scale['label']+")", labelpad=10, fontsize=15)
 

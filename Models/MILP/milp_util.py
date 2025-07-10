@@ -9,6 +9,9 @@ import pickle
 class MilpModel:
     def __init__(self, weights=[1,1,1,1]):
         self.weights = weights
+        
+    def set_weights(self, weights):
+        self.weights = weights
 
     def get_placements(self, data_manager, objectives=None, num_panels=1000000):
         zips_df = data_manager.combined_df.copy(deep=True)
