@@ -145,7 +145,7 @@ def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[P
             objective_name = objective.name
             result.append(proj[objective_name] / base[objective_name]) #get the ratio to the base key
         results.append(result)
-
+        print(f"{projection.name} results: {result}")
     # Configuration for the bar graph
     x = np.arange(len(objectives)) # X positions for the groups
     width = 0.25  # Width of each bar
@@ -177,6 +177,67 @@ def plot_bar_comparison_ratio(base_projection:Projection, all_projections:list[P
     # Show the plot
     plt.tight_layout()
     plt.show()
+
+
+#bar graph ratio to a baseline
+def plot_bar_comparison_baseline_ratio(baseline, all_projections:list[Projection], objectives:list[Objective] = create_paper_objectives(), panel_count = 1000000, fontsize = FONT_SIZE, color_palette = sns.color_palette("muted"), hatches=["\\","/","x"], hatch_size = 0.3):
+    # baseline = {objective: value...}
+    plt.style.use("seaborn-v0_8")
+    font = {'family' : 'DejaVu Sans',
+    'weight' : 'bold',
+    'size'   : fontsize}
+
+    matplotlib.rc('font', **font)
+    plt.rcParams['hatch.linewidth'] = hatch_size
+
+    #get the last value for all objectives for all methods
+    results = [] #ex: array of [lexicase results, tournament results etc.]
+    
+
+    for projection in all_projections:
+        result = [] #array of [CO, EG, RE, IE]
+        proj = projection.interpolateObjectiveProjections(panel_count)
+        for objective in objectives:
+            objective_name = objective.name
+            #consider existing panels for some objectives
+            if objective_name in ["Energy Potential", "Carbon Offset"]: #TODO: change hardcoding
+                result.append((proj[objective_name] / baseline[objective_name])+1)
+            else:
+                result.append(proj[objective_name] / baseline[objective_name]) #get the ratio to the base key
+        results.append(result)
+        print(f"{projection.name} results: {result}")
+    # Configuration for the bar graph
+    x = np.arange(len(objectives)) # X positions for the groups
+    width = 0.25  # Width of each bar
+
+    # Create the plot
+    bar_palette = color_palette[1:]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.set_prop_cycle(cycler(color=bar_palette)) #color palette
+
+    # Add bars for each method
+    for i, proj in enumerate(all_projections):
+        ax.bar(x + i * width, results[i], width, label=proj.name, hatch=hatches[i])
+    
+    #show baseline
+    baseline_color = color_palette[0]
+    plt.axhline(y=1, color=baseline_color, linestyle='--', linewidth=3) 
+
+    # Add labels, title, and legend
+    # ax.set_xlabel(f'{panel_count} Panels', fontsize=fontsize, labelpad=20)
+    ax.set_ylabel(f'Fitness (Ratio to Baseline)', fontsize=fontsize)
+    # ax.set_title('Fitness of Selection Methods for all Objectives')
+    ax.set_xticks(x + width*(len(all_projections)-1)/2)
+
+    wrapped_names = [objective.name.replace(" ","\n") for objective in objectives]
+    ax.set_xticklabels(wrapped_names, fontsize=fontsize)
+    ax.legend(fontsize=fontsize/1.3, loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4)
+    plt.ylim(0, 3) #set the y axis bounds
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
 
 #bar graph equity comparison over panel counts
 def plot_equity_comparison(projection:Projection, objectives:list[Objective] = create_equity_objectives(), panel_counts = [0,100000,1000000], fontsize = FONT_SIZE, color_palette = sns.color_palette("Greens")):

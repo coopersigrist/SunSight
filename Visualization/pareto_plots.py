@@ -1,6 +1,7 @@
-from plot_util import *
+from Data.data_load_util import make_dataset
+from .plot_util import *
 # from data_load_util import *
-from SunSight.Simulation.projections_util import *
+from Simulation.projections_util import *
 from tqdm import tqdm
 
 n_panels = 2000000
