@@ -1,8 +1,8 @@
 from cgitb import reset
 import pandas as pd
 import math
-from uszipcode import SearchEngine
-from Data.Data_scraping.scrape_util import zip_to_region_division, state_abbr_to_state_full_func, state_abbr_to_region
+# from uszipcode import SearchEngine
+# from Data.Data_scraping.scrape_util import zip_to_region_division, state_abbr_to_state_full_func, state_abbr_to_region
 import numpy as np
 from scipy.stats import truncnorm
 import ast
@@ -12,17 +12,17 @@ This is the list of decision-making variables for our agents to make decisions o
 '''
 
 #relevant_dataframes 
-sunroof_df = pd.read_csv('Data/Sunroof/solar_by_zip.csv')
-sunroof_state_df = pd.read_csv('Data/Sunroof/solar_by_state.csv')
-elec_cost_state_df = pd.read_csv('Data/Grid/elec_rate_states_2022.csv')
-elec_cost_df = pd.read_csv('Data/Grid/elec_rate_zipcodes_2022.csv')
-energy_expenditure_df = pd.read_csv('Data/EIA/eia_household_elec_consumption.csv')
-state_data_df = pd.read_csv('/Users/asitaram/Documents/GitHub/Untitled/SunSight/Data/Clean_Data/data_by_state_sum.csv')
-solar_by_state_df = pd.read_csv('Data/Sunroof/solar_by_state.csv')
+sunroof_df = pd.read_csv('../../Data/Sunroof/solar_by_zip.csv')
+sunroof_state_df = pd.read_csv('../../Data/Sunroof/solar_by_state.csv')
+# elec_cost_state_df = pd.read_csv('../../Data/Grid/elec_rate_states_2022.csv')
+# elec_cost_df = pd.read_csv('../../Data/Grid/elec_rate_zipcodes_2022.csv')
+# energy_expenditure_df = pd.read_csv('../../Data/EIA/eia_household_elec_consumption.csv')
+state_data_df = pd.read_csv('../../Data/Clean_Data/data_by_state_sum.csv')
+solar_by_state_df = pd.read_csv('../../Data/Sunroof/solar_by_state.csv')
 
 DISCOUNT_RATE = 0.05
 
-search = SearchEngine()
+# search = SearchEngine()
 '''def sample_from_normal_with_mean_rse(mean, rse, n_samples):
     n_samples = int(round(n_samples*1000000, 0))
     se = rse * mean
@@ -36,12 +36,12 @@ def sample_from_normal_with_mean_rse(mean, rse_percent, n_samples):
     sd = (rse_percent/100) * mean
     a, b = (0 - mean)/sd, np.inf
     return truncnorm(a, b, loc=mean, scale=sd).rvs(int(n_samples*1000000))
+
 def get_real_discount_rate(electric_growth_rate, federal_funds_rate, inflation_rate):
     #assume an increase electric prices of 10% --> https://www.masslive.com/news/2022/10/power-planning-westfield-holyoke-other-municipal-utilities-prepare-for-long-expensive-and-uncertain-winter-ahead.html#:~:text=Holyoke%20Gas%20%26%20Electric%20is%20looking,James%20Lavelle%2C%20HG%26E's%20general%20manager.
     #assume inflation rate of avg across 2018 to 2023 https://www.usinflationcalculator.com/inflation/current-inflation-rates/#
     #assume federal funds rate of 5%
     return (1+federal_funds_rate +inflation_rate)/(1 + electric_growth_rate) -1
-
 
 #not including installation cost
 #parameters that will vary are -
@@ -57,70 +57,76 @@ def npv_of_energy_savings(electric_cost, electric_consumption, energy_ratio, rea
         npv += price_of_electricity_consumed
     return npv* energy_ratio
 
-def payback_period_of_energy_savings(max_payback, real_discount_rate, investment, income, energy_burden, proportion_offset):
-    #if home can pay upfront without exceeding existing electricity costs, it should
-    #simple payback
-    if investment/income <= energy_burden:
-        #print('in here')
-        down_payment = investment
-        remaining_investment = 0
-        yearly_payment_to_investment = 0
-    #if the home cannot outright afford the installation, they their current energy bill as a downpayment
-    else :
-        down_payment = energy_burden * income * proportion_offset
-        remaining_investment = investment - down_payment
-        yearly_payment_to_investment = energy_burden * income * proportion_offset
-        #homes will pay at most the energy burden they were paying previously per year to finance the solar panels
-        #remaining_investment_per_year = remaining_investment/down_payment
-        #print(f'downpayment {down_payment}')
-        #print(f'remaining_investment {remaining_investment}')
-        #print(f'yearly payment to investment {yearly_payment_to_investment}')
-        #print(f'discount rate {real_discount_rate}')
-        #print(f'remaining_investment per year {remaining_investment_per_year}')
-    cash_inflow = max_payback
-    cumulative_gains = -remaining_investment
-    year = 0
+def get_payment_stats(installation_cost, income, energy_burden, proportion_offset):
     '''
-    cash_outflow = min(yearly_payment_to_investment, remaining_investment)
-    remaining_investment -= cash_outflow
-    discounted_cash_inflow =(cash_inflow  - cash_outflow)
-    return (cumulative_gains *-1)/discounted_cash_inflow
-    '''
-    while year >=0:
-        cash_outflow = min(yearly_payment_to_investment, remaining_investment)
-        remaining_investment -= cash_outflow
-        #remaining_investment= remaining_investment * (1.05)/ ((1 + real_discount_rate) ** year)
+    inputs:
+    max_payback: maximum cash inflow per year from energy savings
+    installation_cost: upfront payment toward solar installation, including any incentives
+    income: annual income of the household
+    energy_burden: proportion of income spent on energy annually before solar installation
+    proportion_offset: proportion of energy consumption offset by solar installation 
 
-        discounted_cash_inflow =(cash_inflow  - cash_outflow)  #/ ((1 + real_discount_rate) ** year) 
-        #print(f' discounted_cash_inflow {discounted_cash_inflow}')
-        cumulative_gains += discounted_cash_inflow 
-        year += 1
-        if cumulative_gains >= 0:
-            excess = cumulative_gains 
-            #print(f'excess {excess}')
-            fraction_of_year = 1 - (excess / discounted_cash_inflow)
-            #print(f'years to payback {year + fraction_of_year}')
-            return year + fraction_of_year
+    returns:
+    down_payment: upfront payment toward solar installation
+    loan: amount financed through a loan
+    yearly_savings: amount saved from energy bill each year, paid toward loan if needed
+
+    ASSUMPTIONS: 
+    Buyer does not pay more than their current electric bill per year.
+    therefor down_payment/ yearly payment is capped at energy_burden * income * proportion -- i.e. yearly bill remains constant after solar installation
+    '''
+    yearly_savings = energy_burden * income * proportion_offset # This is the amount saved from your energy bill each year, paid toward loan if needed
+    loan = max(installation_cost - yearly_savings, 0)
+
+    return loan, yearly_savings
+
+def payback_period_of_energy_savings(installation_cost, income, energy_burden, proportion_offset, interest_rate=0.05):
+
+    '''
+    inputs:
+    max_payback: maximum cash inflow per year from energy savings
+    investment: upfront payment toward solar installation, including any incentives
+    income: annual income of the household
+    energy_burden: proportion of income spent on energy annually before solar installation
+    proportion_offset: proportion of energy consumption offset by solar installation
     
-def incentive_for_target_payback(max_payment, real_discount_rate, actual_payback, payback_target, investment_original, energy_burden, income, proportion_offset):
-    years_to_make_up = actual_payback - payback_target
-    print(years_to_make_up)
-    return years_to_make_up * energy_burden *income *proportion_offset
-    ''''C = energy_burden * income * proportion_offset
-    if payback_target< 1:
-        cumulative =  C * payback_target
-        #print(investment_original)
-        return investment_original-cumulative
-    year_floor = int(payback_target)
-    fraction = payback_target - year_floor
+    returns: 
+    payback_period: number of years to pay back installation cost
+    '''
+
+    loan, yearly_savings = get_payment_stats(installation_cost, income, energy_burden, proportion_offset)
+
+    if loan == 0:
+        payback_period = installation_cost / yearly_savings
     
-    cumulative = 0
-    for t in range(year_floor):
-        cumulative += C #/ ((1 + real_discount_rate) ** year_floor)
-    
-    # Add fraction of last year
-    cumulative += fraction * (C) #/ ((1 + real_discount_rate) ** year_floor))
-    return investment_original - cumulative'''
+    else :
+        payback_period = -(math.log(1 - (interest_rate * loan / yearly_savings)) / math.log(1 + interest_rate)) + 1 # time to pay off loan and down payment
+
+    return payback_period
+
+def incentive_for_target_payback(payback_target, installation_cost, energy_burden, income, proportion_offset, interest_rate=0.05):
+    '''
+    inputs:
+    max_payback: maximum cash inflow per year from energy savings
+    real_discount_rate: real discount rate (as a decimal)
+    actual_payback: expected payback period in years
+    payback_target: desired payback period in years
+    installation_cost: upfront payment toward solar installation, including any incentives
+    income: annual income of the household
+    energy_burden: proportion of income spent on energy annually before solar installation
+    proportion_offset: proportion of energy consumption offset by solar installation
+
+    returns: required incentive amount to achieve target payback period
+    '''
+
+    loan, yearly_savings = get_payment_stats(installation_cost, income, energy_burden, proportion_offset)
+
+    max_loan = (1 - math.exp((1-payback_target)*math.log(1+interest_rate))) * yearly_savings/interest_rate
+
+    needed_incentive = (loan - max_loan)
+
+    return needed_incentive
+
 def npv_of_elec_consumption_only(electric_cost, electric_consumption, real_discount_rate, payback_period):
     npv=0
     for i in range(payback_period):
@@ -149,6 +155,7 @@ def make_installation_right_sized_cost(agent, proportion_of_install_energy_consu
     #print(f'state install cost adjusted for size{state_install_costs_2}')
     #print(state_install_costs_2 > state_install_costs_adjusted_for_size)
     return state_install_costs_adjusted_for_size
+
 def adjusted_installation_cost(installation_cost, rebate):
     return installation_cost - rebate
 
@@ -157,13 +164,9 @@ def get_agent_energy_ratio(agent):
     offset = agent.solar_offset_per_home
     return offset/energy_consumption
 
-'''def get_energy_burden_from_income(income, bracket_dict):
-        for (low, high), avg_burden in bracket_dict.items():
-            if low <= income <= high:
-                return avg_burden
-        return None   '''
 def get_agent_energy_burden(agent):
     return (agent.energy_expenditure[0] *agent.elec_cost)/agent.income
+
 def get_agent_npv(agent, real_discount_rate, payback_period):
     #print('in the npv func')
     zip = agent.zipcode
@@ -213,13 +216,10 @@ def get_agent_target_incentive(agent, real_discount_rate, payback_target, averag
     #proportion_offset = agent.energy_ratio
     proportion_offset = offset/energy_consumption
 
-    #ratio_of_savings = ((energy_consumption*electricity_dollar_per_kwh_start) * proportion_offset)/agent.income
-    #print(f'proportion offset {energy_consumption}')
     max_savings_per_year = (energy_consumption*electricity_dollar_per_kwh_start)
-    #payback_period = incentive_for_target_payback(max_savings_per_year, real_discount_rate, payback_target, installation_cost, agent.income,average_energy_burden, average_energy_ratio)
-    payback_period = incentive_for_target_payback(max_savings_per_year, real_discount_rate, agent.payback_period, payback_target, installation_cost, average_energy_burden, agent.income, average_energy_ratio)
+    needed_incentive = incentive_for_target_payback(max_savings_per_year, real_discount_rate, agent.payback_period, payback_target, installation_cost, average_energy_burden, agent.income, average_energy_ratio)
     #print(f'npv_val {npv_val}')
-    return payback_period
+    return needed_incentive
 
 def get_elec_cost(zipcode, is_state=False):
     elec_cost = elec_cost_df[elec_cost_df['zip'] == zipcode]
@@ -292,6 +292,7 @@ def build_energy_distributions(zipcode, is_state=False):
     n_samples_8 = filtered_df['$150,000 or more_count_millions'].iloc[0]
     dist_8 = sample_from_normal_with_mean_rse(mean_8, rse_8, n_samples_8)
     return [dist_1, dist_2, dist_3, dist_4, dist_5, dist_6, dist_7, dist_8]
+
 def get_energy_expenditure(dist_array, income, elec_cost):
     #print('getting energy expenditure')
     ratio = income/elec_cost
@@ -364,12 +365,11 @@ def get_energy_expenditure(dist_array, income, elec_cost):
         draw = np.random.choice(dist_arr, size=1)
         return draw
 
-
 def solar_potential_to_cost_offset(zip, solar_pv_sizing_kw, is_state=False):
     offset = sunroof_df[sunroof_df['region_name'] == zip]
     if offset.empty:
         if not is_state:
-            state_abbr, region, division =zip_to_region_division(zip, search)
+            state_abbr, region, division = zip_to_region_division(zip, search)
             
         else:
             state_abbr = zip
@@ -426,7 +426,6 @@ def get_response(agent, weights):
     else:
         return 0
 
-
 def get_energy_expenditure_vectorized(dist_array, incomes, elec_cost):
     
     '''if not isinstance(elec_cost, float):
@@ -468,3 +467,14 @@ def get_energy_expenditure_vectorized(dist_array, incomes, elec_cost):
                 expenditures[j] = min(exp, incomes[j])
 
     return expenditures
+
+
+if __name__ == "__main__":
+    # print(payback_period_of_energy_savings(15100, 75000, 0.03, 0.5)) # No subsidy
+    # print(payback_period_of_energy_savings(10600, 75000, 0.03, 0.5)) # With subsidy
+
+    print(incentive_for_target_payback(10, 15100, 0.03, 100000, 0.5)) # No subsidy
+    print(incentive_for_target_payback(10, 10600, 0.03, 100000, 0.5)) # With subsidy
+
+    for i in range(15):
+        print("needed incentive for", i, "year payback:", incentive_for_target_payback(i, 15100, 0.03, 100000, 0.5))
