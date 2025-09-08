@@ -228,6 +228,47 @@ def load_eia_installations_data(load_dir="Clean_Data/installs_by_state.csv", sav
 
     return comp_df
 
+# loading all eia installations, prop differences in cap and generation, etc. from 2014-2024 (exlcuding 2021 and 2025 due to incomplete data)
+def load_eia_installations_data_full_decade(load_dir="EIA/cleaned_small_scale_solar_multi_year.xlsx", save=True, print_stats=False):
+    '''
+    Loads past decade of EIA data for added Capacity and Generation by State
+    '''
+    '''if exists(load_dir):
+        df = pd.read_csv(load_dir)
+        return df '''
+    df_dict = pd.read_excel("/Users/asitaram/Documents/GitHub/Untitled/SunSight/Data/EIA/cleaned_small_scale_solar_multi_year.xlsx", sheet_name=None)
+    df_all = pd.concat(
+    [df.assign(sheet_name=sheet) for sheet, df in df_dict.items()])
+    excluded_column = 'State'
+
+    # Get all columns except the excluded one
+    columns_to_modify = [col for col in df_all.columns if col != excluded_column]
+    df_all[columns_to_modify] = df_all[columns_to_modify].replace('NM', 0)
+
+    df_all=df_all.replace('.',0)
+    print(df_all)
+    df_all = df_all[df_all['State'] != 0]
+    #
+    for key in ['Residential_cap', 'Residential_gen','Commercial_cap','Commercial_gen','Industrial_cap','Industrial_gen', 'Total_cap', 'Total_gen']:
+        df_all[key] = conv_strings_to_floats(df_all[key])
+    df_all_dec = df_all[df_all['Month'] == 12]
+    #df_all_dec = df_all[df_all['State'] != 'DC']
+    total_cap_per_year_per_state =  df_all_dec
+    print(total_cap_per_year_per_state)
+
+    total_cap_per_year_per_state["Yearly_Diff"] = (
+        total_cap_per_year_per_state
+        .groupby("State")["Residential_cap"]
+        .diff()
+    )
+    #total_cap_per_year_per_state['Previous_Residential_cap'] =total_cap_per_year_per_state.groupby('State')['Residential_cap'].shift(1)
+    total_cap_per_year_per_state = total_cap_per_year_per_state.fillna(0)
+    #total_cap_per_year_per_state['Yearly_Diff'] = total_cap_per_year_per_state['Yearly_Diff'].clip(lower=0)
+    total_cap_per_year_per_state['Prop_Added_Capacity'] =total_cap_per_year_per_state['Yearly_Diff'] / total_cap_per_year_per_state['Residential_cap']
+
+    total_cap_per_year_per_state = total_cap_per_year_per_state[['Year', 'Month', 'State', 'Residential_cap', 'Residential_gen', 'Yearly_Diff']]
+    total_cap_per_year_per_state.to_csv('Clean_data/dec_cap_per_year_per_state.csv')
+
 def stats_by_state(df, key, state):
     '''
     calculates the mean, std, and median of a particular coloumn of df (denoted by "key")
@@ -431,6 +472,7 @@ def make_dataset(granularity='zip', remove_outliers=False, save=True, load_dir_p
     
 
 if __name__ == '__main__':
-    zips_df, state_df, pos_df = make_dataset(granularity='both', remove_outliers=False, save=True)
-    sum_df = make_state_dataset(zips_df, None, None, "Clean_data/data_by_state_sum.csv", agg="sum")
-    print(state_df['estimated_install_count'] - sum_df['existing_installs_count'])
+    load_eia_installations_data_full_decade(load_dir="EIA/cleaned_small_scale_solar_multi_year.xlsx", save=True, print_stats=False)
+    #zips_df, state_df, pos_df = make_dataset(granularity='both', remove_outliers=False, save=True)
+    #sum_df = make_state_dataset(zips_df, None, None, "Clean_data/data_by_state_sum.csv", agg="sum")
+    #print(state_df['estimated_install_count'] - sum_df['existing_installs_count'])
