@@ -597,18 +597,50 @@ class SolarAdoptionModelState(Model):
 
 if __name__ == "__main__":
 
-    zips = pd.read_csv('../../Data/Clean_Data/zips.csv')['zip']
-    zips = [z for z in zips if z in census_df['zcta'].values]
+    zips = pd.read_csv('../../Data/Clean_Data/zips.csv')
+    zips = zips[zips['zip'].isin(census_df['zcta'].values)]
 
-    quit() # Remove when ready to run
+    zip_to_state_dict = dict(zip(zips['zip'], zips['state_code']))
 
-    for zip in zips:
-        model = SolarAdoptionModelZipCode(zip)
-        model.set_installation_cost(25000) # TODO need to set this by state
-        model.set_solar_offset_per_home(solar_pv_sizing_kw=6.6)
-        model.generate_agents()
-        payback_period = model.get_all_paybacks()
-        required_incentives = model.get_all_required_incentives() # TODO Get year cutoff by state and by year
+    state_data = pd.read_csv('state_behavior.csv')
+
+    INSTALLATION_COST = 17500
+
+    additional_incentives = [0, 500, 1000, 1500, 2000, 2500, 5000, 5250, 7500, 10000]
+
+
+    for additional_incentive in additional_incentives:
+        output_df = pd.DataFrame()
+
+        for index, state in tqdm(state_data.iterrows()):
+
+            cutoff = state['payback_period_first_year_cutoff']
+            growth_rate = state['year_over_year_growth']
+            state_incentive = state['Numeric state-level upfront incentive']
+
+            state_zips = [zip for zip, state_code in zip_to_state_dict.items() if state_code == state['State code']]
+
+            for zip in state_zips:
+                model = SolarAdoptionModelZipCode(zip)
+                model.set_installation_cost(INSTALLATION_COST - state_incentive - additional_incentive) # TODO need to set this by state
+                model.set_solar_offset_per_home(solar_pv_sizing_kw=7) # we assume a 7 kW system for all homes
+                model.generate_agents()
+                model.calculate_all_agent_paybacks()
+                model.set_payback_period(cutoff)
+                model.calculate_all_agent_target_incentives(cutoff)
+                payback = model.get_all_paybacks()
+                avg_needed_incentive = np.mean(model.get_all_required_incentives())
+
+                output_dict = {'zip': zip, 'avg_needed_incentive': avg_needed_incentive, 'growth_rate': growth_rate}
+
+                for year in range(0,5):
+                    prop_adopting = np.sum(np.array(payback) <= cutoff * growth_rate**year) / 1000
+                    output_dict["adopt_in_" + str(year) + "_years"] = prop_adopting
+
+                to_add_df = pd.DataFrame(output_dict, index=[0])
+                output_df = pd.concat([output_df, to_add_df], ignore_index=True)
+
+        output_df.to_csv("Simulated Behavior Data/" + str(additional_incentive)+'_incentive.csv', index=False) 
 
         # TODO Save payback period, required incentives and install cost to a CSV
         # Need to calc the year cutoff for each state
