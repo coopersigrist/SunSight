@@ -162,13 +162,21 @@ def payback_period_of_energy_savings(max_payback, installation_cost, income, ene
     '''
 
     loan, yearly_savings = get_payment_stats(max_payback, installation_cost, income, energy_burden, proportion_offset)
-
+    print(f'yearly savings {yearly_savings}')
+    print(f'loan {loan}')
     if loan == 0:
+        #print('no loan')
         payback_period = installation_cost / yearly_savings
+        #print(f'yearly_savings {yearly_savings}')
     
     else :
-        payback_period = -(math.log(1 - (interest_rate * loan / yearly_savings)) / math.log(1 + interest_rate)) + 1 # time to pay off loan and down payment
-
+        payback_period =  loan/yearly_savings + 1
+        '''num = -(math.log(1 - (loan / yearly_savings)))
+        print(f'payback_num {num}')
+        den = math.log(1 + interest_rate)
+        print(f'payback_den {den}')
+        payback_period =  num/den  + 1 # time to pay off loan and down payment
+'''
     return payback_period
 
 def incentive_for_target_payback(max_payback, real_discount_rate, actual_payback, payback_target, installation_cost, energy_burden, income, proportion_offset, interest_rate=0.05):
@@ -271,7 +279,8 @@ def get_agent_payback_period(agent, real_discount_rate, average_energy_burden, a
     #print(f'average energy ratio {average_energy_ratio}')
     max_savings_per_year = (energy_consumption*electricity_dollar_per_kwh_start)* average_energy_ratio #*proportion_offset
     #print(f'install size {energy_consumption*electricity_dollar_per_kwh_start }')
-    payback_period = payback_period_of_energy_savings(max_savings_per_year, real_discount_rate, installation_cost, agent.income,average_energy_burden, average_energy_ratio)
+    #payback_period_of_energy_savings(max_payback, installation_cost, income, energy_burden, proportion_offset, interest_rate=0.0)
+    payback_period = payback_period_of_energy_savings(max_savings_per_year, installation_cost, agent.income,average_energy_burden, average_energy_ratio)
     #print(f'npv_val {npv_val}')
     return payback_period
 
