@@ -1,9 +1,12 @@
 # Required Libraries
 from census import Census
 from us import states
-
+import os
 import pandas as pd
 import csv
+from sklearn.linear_model import LinearRegression #, LogisticRegression
+from sklearn.svm import SVR
+from sklearn.metrics import r2_score
 
 # from geopy.geocoders import Nominatim # For address to lat/long
 from uszipcode import SearchEngine
@@ -14,6 +17,11 @@ from os.path import exists
 from urllib.request import urlopen
 import urllib
 import ast
+import numpy as np
+
+def conv_strings_to_floats(lst):
+    new = [float(s.replace(",", "")) if type(s) == str else s for s in lst]
+    return np.array(new)
 state_to_region_division = {
     # Northeast
     'CT': ('Northeast', 'New England'),
@@ -74,6 +82,24 @@ state_to_region_division = {
     'OR': ('West', 'Pacific'),
     'WA': ('West', 'Pacific')
 }
+
+state_abbr_to_state_full = state_map = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
+    "PR": "Puerto Rico"
+}
+
 #connecting the zipcode to region/division
 def zip_to_region_division(zipcode, search_engine):
     zipcode_info = search_engine.by_zipcode(zipcode)
@@ -85,6 +111,11 @@ def zip_to_region_division(zipcode, search_engine):
     region, division = state_to_region_division.get(state_abbr, (None, None))
     return state_abbr, region, division
 
+def state_abbr_to_state_full_func(state_abbr):
+    return state_abbr_to_state_full[state_abbr]
+def state_abbr_to_region(state_abbr):
+    region, division = state_to_region_division.get(state_abbr, (None, None))
+    return region, division
 # Downloads csv's of the project sunroof data at different granularities and saves them
 def project_sunroof_scrape():
 
@@ -133,7 +164,6 @@ def get_census_info_by_zip_codes(code_dict, save_dir="../Census/census_by_zip.cs
     df.to_csv(save_dir, index=False)
 
     return df
-
 # BY BUILDING (lat/long) SOLAR DATA
 def sunroof_by_coord(lat=0,long=0,label='test',API_key=''):
     

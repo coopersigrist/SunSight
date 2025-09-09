@@ -1,0 +1,1 @@
+elec_rate_zipcodes_2022.csv contains the electricity prices for residential areas in 2022 for each zipcode
