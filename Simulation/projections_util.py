@@ -149,7 +149,6 @@ def init_objective_projs(zip_df, objectives:list[Objective]):
 
     return objectives_proj
 
-
 # initializes a projection dict for each objective from a list of objectives
 def init_objective_projs(zip_df, objectives:list[Objective]):
 
@@ -158,12 +157,9 @@ def init_objective_projs(zip_df, objectives:list[Objective]):
 
     return objectives_proj
     
-
-
-
 # Creates a projection of carbon offset if the current ratio of panel locations remain the same 
 # allowing partial placement of panels in zips and not accounting in the filling of zip codes.
-#NOTE: this status quo is deprecated
+#NOTE: this status quo is deprecated -- see future esimate projection
 def create_status_quo_projection(zip_df, n_panels:int=1000, objectives:list[Objective]=[], intervals=10):
 
     total_panels = np.sum(zip_df['existing_installs_count'])
@@ -259,6 +255,21 @@ def get_baseline_2025(zips_df:pd.DataFrame, state_df:pd.DataFrame, save = None, 
             pickle.dump(projection2025, dir, pickle.HIGHEST_PROTOCOL)
     return projection2025
 
+# Creates a projection, given some proportions of panels to add to each zip code
+def create_proportional_projection(zip_df, proportions, n_panels=1000, objectives:list[Objective]=[], name="Proportional"):
+
+    # Initialize the projections dictionary
+    projections = init_objective_projs(zip_df, objectives)
+
+    # Calculate the number of panels to add for each zip code based on the proportions
+    panel_placements = {zip_code: (1+proportion) * n_panels for zip_code, proportion in proportions.items()}
+
+    for objective in objectives:
+        projections[objective.name][n_panels] = objective.calc(zip_df, panel_placements)
+
+    proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
+    return proj
+
 # Greedily adds 1-> n solar panels to zips which maximize the sort_by metric until no more can be added
 # Returns the Carbon offset for each amount of panels added
 def create_greedy_projection(zip_df, n_panels=1000, sort_by='carbon_offset_metric_tons_per_panel', ascending=False, objectives:list[Objective]=[], name="Greedy"):
@@ -313,7 +324,6 @@ def create_projection_from_panel_assignment(zip_df, panel_placements:dict, objec
 
     proj = Projection(objective_projections=projections, panel_placements=panel_placements, name=name)
     return proj
-
 
 #mixed integer linear programming panel assignment projection
 def create_milp_projection(data_manager, n_panels=1000, model=None, objectives:list[Objective]=[], save=None, load=None):
@@ -426,7 +436,6 @@ def create_neat_proj(data_manager, n_panels=1000, model = None, objectives:list[
 
     return proj
 
-
 # Creates a projection of carbon offset for adding solar panels to random zipcodes
 # The zipcode is randomly chosen for each panel, up to n panels
 ''' TODO REFACTOR (low prio)'''
@@ -529,7 +538,6 @@ def linear_weighted_gridsearch(zip_df:pd.DataFrame, n_panels:int=1000, attribute
         scores_df.to_csv(save, header=attributes+[obj.name for obj in objectives], index=False)
 
     return scores_df
-
 
 #gridsearch different weight combinations
 def milp_gridsearch(data_manager, model=None, n_panels:int=1000, max_weights=np.ones(4), n_samples:int=10, objectives:list[Objective]=[], save=None, load=None):
