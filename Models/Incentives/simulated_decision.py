@@ -595,26 +595,25 @@ class SolarAdoptionModelState(Model):
             agent.payback_period = av.get_agent_payback_period(agent, agent_bracket, agent_ratio)
 
 
-# IGNORE BELOW -checking that all of the column information has been included in the dataframe
-
-
 if __name__ == "__main__":
 
     zips = pd.read_csv('../../Data/Clean_Data/zips.csv')['zip']
     zips = [z for z in zips if z in census_df['zcta'].values]
 
-    start = time()
-    model = SolarAdoptionModelZipCode(2053)
-    model.set_installation_cost(15000)
-    model.set_payback_period(6.57)
-    model.set_solar_offset_per_home(solar_pv_sizing_kw=6.6)
-    model.generate_agents()
-    model.calculate_all_agent_paybacks()
-    model.calculate_all_agent_target_incentives(3)
-    end = time()
-    print(f"Time taken: {end - start:.2f} seconds")
-    print(np.mean(model.get_all_paybacks()))
-    print(np.mean(model.get_all_required_incentives()))
+    quit() # Remove when ready to run
+
+    for zip in zips:
+        model = SolarAdoptionModelZipCode(zip)
+        model.set_installation_cost(25000) # TODO need to set this by state
+        model.set_solar_offset_per_home(solar_pv_sizing_kw=6.6)
+        model.generate_agents()
+        payback_period = model.get_all_paybacks()
+        required_incentives = model.get_all_required_incentives() # TODO Get year cutoff by state and by year
+
+        # TODO Save payback period, required incentives and install cost to a CSV
+        # Need to calc the year cutoff for each state
+
+
 
 
 
