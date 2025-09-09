@@ -9,9 +9,10 @@ from mesa.time import RandomActivation
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 import matplotlib.pyplot as plt
-import Models.Incentives.acceptance_vars as av
+import acceptance_vars as av
 from tqdm import tqdm
 import random
+from time import time
 
 # Load census data globally
 census_df = pd.read_csv('../../Data/Incentives/census_by_zip_complex.csv')
@@ -55,12 +56,12 @@ class Home(Agent):
     This model just does a simple accept-reject with two factors:
     1. is the ROI (return on investment). This modeled as in Crago et.al, if ROI *1.6 >= initial installation cost, npv_var =1. Additionally, if the home cannot afford the initial
     start-up cost, the agent cannot accept the adoption
-    2. The other is peer-influence (do others in the zipcode/do my neighbors have solar?). This is calculated using the density of solar in the zipcode based on sunroof data. In this model speciifcially, the agent peer influence is a constant 
+    2. The other is peer-influence (do others in the zipcode/do my neighbors have solar?). This is calculated using the density of solar in the zipcode based on sunroof data. In this model speciifcally, the agent peer influence is a constant 
     and does not change across other agents in the zipcode. 
     3.
     '''
     def __init__(self, zipcode, income, elec_cost, energy_expenditure, has_solar, solar_offset_per_home, installation_cost, model):
-        super().__init__(model.next_id(), model)
+        super().__init__(model)
         self.zipcode = zipcode
         self.income = income
         self.elec_cost = elec_cost
@@ -78,6 +79,7 @@ class Home(Agent):
         self.discount_rate = None
         self.percent_loan_amount = None
         self.energy_burden = None
+
     def describe(self):
         """Return a detailed description of the agent"""
         description = {
@@ -124,7 +126,6 @@ class Home(Agent):
     def calculate_npv(self, discount_rate, payback_period):
         self.npv = av.get_agent_npv(self, discount_rate, payback_period)
 
-
 class SolarAdoptionModelZipCode(Model):
     def __init__(self, zipcode):
         super().__init__()
@@ -161,86 +162,66 @@ class SolarAdoptionModelZipCode(Model):
 
     def generate_agents(self):
 
-        
-        #getting electric costs
         elec_cost = av.get_elec_cost(self.zipcode)
-
-        # getting synthetic income values for the zipcode
-        zipcode_row = census_df[census_df['zip'] == self.zipcode]
+        zipcode_row = census_df[census_df['zcta'] == self.zipcode]
         if zipcode_row.empty:
             print(f"No data found for zipcode {self.zipcode}")
             return
-            
-        total_pop = zipcode_row['total_households'].iloc[0]
-        total_pop_bracket_1 = zipcode_row['Income: < $10,000'].iloc[0]
-        total_pop_bracket_2 = zipcode_row['Income: $10,000-$14,999'].iloc[0]
-        total_pop_bracket_3 = zipcode_row['Income: $15,000-$19,999'].iloc[0]
-        total_pop_bracket_4 = zipcode_row['Income: $20,000-$24,999'].iloc[0]
-        total_pop_bracket_5 = zipcode_row['Income: $25,000-$29,999'].iloc[0]
-        total_pop_bracket_6 = zipcode_row['Income: $30,000-$34,999'].iloc[0]
-        total_pop_bracket_7 = zipcode_row['Income: $35,000-$39,999'].iloc[0]
-        total_pop_bracket_8 = zipcode_row['Income: $40,000-$44,999'].iloc[0]
-        total_pop_bracket_9 = zipcode_row['Income: $45,000-$49,999'].iloc[0]
-        total_pop_bracket_10 = zipcode_row['Income: $50,000-$59,999'].iloc[0]
-        total_pop_bracket_11 = zipcode_row['Income: $60,000-$74,999'].iloc[0]
-        total_pop_bracket_12 = zipcode_row['Income: $75,000-$99,999'].iloc[0]
-        total_pop_bracket_13 = zipcode_row['Income: $100,000-$124,999'].iloc[0]
-        total_pop_bracket_14 = zipcode_row['Income: $125,000-$149,999'].iloc[0]
-        total_pop_bracket_15 = zipcode_row['Income: $150,000-$199,999'].iloc[0]
-        total_pop_bracket_16 = zipcode_row['Income: $200,000+'].iloc[0]
 
-        bracket_count = dict({
-            (1000,9999): total_pop_bracket_1/total_pop,
-            (10000,14999): total_pop_bracket_2/total_pop,
-            (15000, 19999): total_pop_bracket_3/total_pop,
-            (20000, 24999): total_pop_bracket_4/total_pop,
-            (25000, 29999): total_pop_bracket_5/total_pop,
-            (30000, 34999): total_pop_bracket_6/total_pop,
-            (35000, 39999): total_pop_bracket_7/total_pop,
-            (40000, 44999): total_pop_bracket_8/total_pop,
-            (45000,49999): total_pop_bracket_9/total_pop,
-            (50000,59999): total_pop_bracket_10/total_pop,
-            (60000,74999): total_pop_bracket_11/total_pop,
-            (75000,99999): total_pop_bracket_12/total_pop,
-            (100000,124999):total_pop_bracket_13/total_pop,
-            (125000,149999):total_pop_bracket_14/total_pop,
-            (150000,199999):total_pop_bracket_15/total_pop,
-            #arbitrary upper limit here - because we do need an upper limit
-            (200000,1000000):total_pop_bracket_16/total_pop
-        })
+        total_pop = zipcode_row['total_households'].iloc[0]
+        brackets = [
+            ('Income: < $10,000', (1000, 9999)),
+            ('Income: $10,000-$14,999', (10000, 14999)),
+            ('Income: $15,000-$19,999', (15000, 19999)),
+            ('Income: $20,000-$24,999', (20000, 24999)),
+            ('Income: $25,000-$29,999', (25000, 29999)),
+            ('Income: $30,000-$34,999', (30000, 34999)),
+            ('Income: $35,000-$39,999', (35000, 39999)),
+            ('Income: $40,000-$44,999', (40000, 44999)),
+            ('Income: $45,000-$49,999', (45000, 49999)),
+            ('Income: $50,000-$59,999', (50000, 59999)),
+            ('Income: $60,000-$74,999', (60000, 74999)),
+            ('Income: $75,000-$99,999', (75000, 99999)),
+            ('Income: $100,000-$124,999', (100000, 124999)),
+            ('Income: $125,000-$149,999', (125000, 149999)),
+            ('Income: $150,000-$199,999', (150000, 199999)),
+            ('Income: $200,000+', (200000, 1000000))
+        ]
+        bracket_count = {}
+        for col, rng in brackets:
+            bracket_count[rng] = zipcode_row[col].iloc[0] / total_pop
 
         synthetic_income = []
+        dist_array = av.build_energy_distributions(self.zipcode) # TODO Speed up
 
-        dist_array = av.build_energy_distributions(self.zipcode)
         for (low, high), count in bracket_count.items():
-            #print(count)
-            if count > 0:  # Only sample if there are households in this bracket
-                samples = sample_within_bracket(low, high, round(count*1000), 'uniform')
+            if count > 0:
+                samples = sample_within_bracket(low, high, round(count * 1000), 'uniform')
                 synthetic_income.extend(samples)
-        
-        # Create agents with the synthetic income data
+
+
         expenditures = av.get_energy_expenditure_vectorized(dist_array, synthetic_income, elec_cost)
-        for i in tqdm(range(len(synthetic_income))):
+
+        # Create agents with the synthetic income data
+        for i in range(len(synthetic_income)):
             income_val = synthetic_income[i]
-            #print(energy_expenditure)
-            energy_exp = expenditures[i]#av.get_energy_expenditure(dist_array, income_val, elec_cost)
+            energy_exp = expenditures[i]
             agent = Home(
                 zipcode=self.zipcode,
                 income=income_val,
                 elec_cost=elec_cost,
                 energy_expenditure=energy_exp,
                 has_solar=False,
-                solar_offset_per_home = self.solar_offset_per_home,
-                installation_cost = self.installation_cost,
+                solar_offset_per_home=self.solar_offset_per_home,
+                installation_cost=self.installation_cost,
                 model=self,
-                
             )
-            #agent.npv= av.get_agent_npv(agent, self.discount_rate, self.payback_period)
             agent.energy_ratio = av.get_agent_energy_ratio(agent)
-            #agent.required_incentive = av.get_agent_target_incentive(agent, self.discount_rate, self.payback_cutoff)
-            #print('npv')
-            #print(agent.npv)
+            agent.energy_burden = av.get_agent_energy_burden(agent)
             self.schedule.add(agent)
+
+        self.get_agent_average_bracket_energy_burden()
+        self.get_agent_average_bracket_energy_ratio()
 
     
     def get_neighbors_in_zip(self, zipcode):
@@ -277,6 +258,38 @@ class SolarAdoptionModelZipCode(Model):
     def get_all_energy_ratios(self):
         energy_ratios = [agent.energy_ratio for agent in self.schedule.agents]
         return energy_ratios
+    
+    def get_agent_average_bracket_energy_burden(self):
+        brackets = [
+            (1000, 9999), (10000, 14999), (15000, 19999), (20000, 24999),
+            (25000, 29999), (30000, 34999), (35000, 39999), (40000, 44999),
+            (45000, 49999), (50000, 59999), (60000, 74999), (75000, 99999),
+            (100000, 124999), (125000, 149999), (150000, 199999), (200000, 10000000)
+        ]
+        avg_elec_income = {}
+        for low, high in brackets:
+            bracket_agents = [a for a in self.schedule.agents if low <= a.income < high]
+            if bracket_agents:
+                avg_elec_income[(low, high)] = np.average([agent.energy_burden for agent in bracket_agents])
+            else:
+                avg_elec_income[(low, high)] = 0
+        self.agent_average_bracket_energy_burden = avg_elec_income
+        
+    def get_agent_average_bracket_energy_ratio(self):
+        brackets = [
+            (1000, 9999), (10000, 14999), (15000, 19999), (20000, 24999),
+            (25000, 29999), (30000, 34999), (35000, 39999), (40000, 44999),
+            (45000, 49999), (50000, 59999), (60000, 74999), (75000, 99999),
+            (100000, 124999), (125000, 149999), (150000, 199999), (200000, 10000000)
+        ]
+        avg_elec_income = {}
+        for low, high in brackets:
+            bracket_agents = [a for a in self.schedule.agents if low <= a.income < high]
+            if bracket_agents:
+                avg_elec_income[(low, high)] = np.average([agent.energy_ratio for agent in bracket_agents])
+            else:
+                avg_elec_income[(low, high)] = 0
+        self.agent_average_bracket_energy_ratio = avg_elec_income
 
     def get_all_energy_consumptions(self):
         energy_expenditures = [agent.energy_expenditure for agent in self.schedule.agents]
@@ -302,25 +315,27 @@ class SolarAdoptionModelZipCode(Model):
         return None 
 
     def get_all_paybacks(self):
-        incomes = [agent.payback_period for agent in self.schedule.agents]
-        return incomes
+        payback_periods = [agent.payback_period for agent in self.schedule.agents]
+        return payback_periods
 
     def calculate_all_agent_paybacks(self):
-        for a in tqdm(range(len(self.schedule.agents))):
+        for a in range(len(self.schedule.agents)):
             agent = self.schedule.agents[a]
             agent_bracket = self.get_energy_burden_from_income(agent.income)
             agent_ratio = self.get_energy_ratio_from_income(agent.income)
-            agent.payback_period = av.get_agent_payback_period(agent, self.discount_rate, agent_bracket, agent_ratio)
+            agent.payback_period = av.get_agent_payback_period(agent, agent_bracket, agent_ratio)
+
     def calculate_all_agent_target_incentives(self, cutoff):
         list_agents = []
-        for a in tqdm(range(len(self.schedule.agents))):
+        for a in range(len(self.schedule.agents)):
             agent = self.schedule.agents[a]
             agent_bracket = self.get_energy_burden_from_income(agent.income)
             agent_ratio = self.get_energy_ratio_from_income(agent.income)
-            target_incentive = av.get_agent_target_incentive(agent, self.discount_rate, cutoff, agent_bracket,agent_ratio)
+            target_incentive = av.get_agent_target_incentive(agent, cutoff, agent_bracket,agent_ratio)
             agent.required_incentive = target_incentive
             list_agents.append(target_incentive)
         return list_agents
+    
     def print_agent_summary(self):
         """Print a summary of all agents"""
         print(f"\n=== Agent Summary for Zipcode {self.zipcode} ===")
@@ -425,13 +440,13 @@ class SolarAdoptionModelState(Model):
             (30000, 34999): total_pop_bracket_6/total_pop,
             (35000, 39999): total_pop_bracket_7/total_pop,
             (40000, 44999): total_pop_bracket_8/total_pop,
-            (45000,49999): total_pop_bracket_9/total_pop,
-            (50000,59999):total_pop_bracket_10/total_pop,
-            (60000,74999): total_pop_bracket_11/total_pop,
-            (75000,99999): total_pop_bracket_12/total_pop,
-            (100000,124999):total_pop_bracket_13/total_pop,
-            (125000,149999):total_pop_bracket_14/total_pop,
-            (150000,199999):total_pop_bracket_15/total_pop,
+            (45000, 49999): total_pop_bracket_9/total_pop,
+            (50000, 59999):total_pop_bracket_10/total_pop,
+            (60000, 74999): total_pop_bracket_11/total_pop,
+            (75000, 99999): total_pop_bracket_12/total_pop,
+            (100000, 124999):total_pop_bracket_13/total_pop,
+            (125000, 149999):total_pop_bracket_14/total_pop,
+            (150000, 199999):total_pop_bracket_15/total_pop,
             #arbitrary upper limit here - because we do need an upper limit
             (200000,10000000):total_pop_bracket_16/total_pop
         })
@@ -473,6 +488,7 @@ class SolarAdoptionModelState(Model):
             #print(agent.energy_ratio)
             self.schedule.add(agent)
         self.get_agent_average_bracket_energy_burden()
+        self.get_agent_average_bracket_energy_ratio()
     
     def get_neighbors_in_zip(self, zipcode):
         return [a for a in self.schedule.agents if a.zipcode == zipcode]
@@ -481,117 +497,38 @@ class SolarAdoptionModelState(Model):
         self.schedule.step()
     
     def get_agent_average_bracket_energy_burden(self):
-        print('getting buckets')
-        bracket_1_agents = [a for a in self.schedule.agents if a.income <10000]
-        bracket_2_agents = [a for a in self.schedule.agents if (a.income >= 10000 and a.income< 15000)]
-        bracket_3_agents = [a for a in self.schedule.agents if (a.income >= 15000 and a.income< 20000)]
-        bracket_4_agents = [a for a in self.schedule.agents if (a.income >= 15000 and a.income< 20000)]
-        bracket_5_agents = [a for a in self.schedule.agents if (a.income >= 20000 and a.income< 25000)]
-        bracket_6_agents = [a for a in self.schedule.agents if (a.income >= 25000 and a.income< 30000)]
-        bracket_7_agents = [a for a in self.schedule.agents if (a.income >= 30000 and a.income< 35000)]
-        bracket_8_agents = [a for a in self.schedule.agents if (a.income >= 35000 and a.income< 40000)]
-        bracket_9_agents = [a for a in self.schedule.agents if (a.income >= 40000 and a.income< 45000)]
-        bracket_10_agents = [a for a in self.schedule.agents if (a.income >= 50000 and a.income< 60000)]
-        bracket_11_agents = [a for a in self.schedule.agents if (a.income >= 60000 and a.income< 75000)]
-        bracket_12_agents = [a for a in self.schedule.agents if (a.income >= 75000 and a.income< 100000)]
-        bracket_13_agents = [a for a in self.schedule.agents if (a.income >= 100000 and a.income< 125000)]
-        bracket_14_agents = [a for a in self.schedule.agents if (a.income >= 125000 and a.income< 150000)]
-        bracket_15_agents = [a for a in self.schedule.agents if (a.income >= 150000 and a.income< 200000)]
-        bracket_16_agents = [a for a in self.schedule.agents if (a.income >= 200000)]
-
-        avg_elec_income_1 = np.average(np.array([agent.energy_burden for agent in bracket_1_agents]))
-        avg_elec_income_2 = np.average(np.array([agent.energy_burden for agent in bracket_2_agents]))
-        avg_elec_income_3 = np.average(np.array([agent.energy_burden for agent in bracket_3_agents]))
-        avg_elec_income_4 = np.average(np.array([agent.energy_burden for agent in bracket_4_agents]))
-        avg_elec_income_5 = np.average(np.array([agent.energy_burden for agent in bracket_5_agents]))
-        avg_elec_income_6 = np.average(np.array([agent.energy_burden for agent in bracket_6_agents]))
-        avg_elec_income_7 = np.average(np.array([agent.energy_burden for agent in bracket_7_agents]))
-        avg_elec_income_8 = np.average(np.array([agent.energy_burden for agent in bracket_8_agents]))
-        avg_elec_income_9 = np.average(np.array([agent.energy_burden for agent in bracket_9_agents]))
-        avg_elec_income_10 = np.average(np.array([agent.energy_burden for agent in bracket_10_agents]))
-        avg_elec_income_11 = np.average(np.array([agent.energy_burden for agent in bracket_11_agents]))
-        avg_elec_income_12 = np.average(np.array([agent.energy_burden for agent in bracket_12_agents]))
-        avg_elec_income_13 = np.average(np.array([agent.energy_burden for agent in bracket_13_agents]))
-        avg_elec_income_14 = np.average(np.array([agent.energy_burden for agent in bracket_14_agents]))
-        avg_elec_income_15 = np.average(np.array([agent.energy_burden for agent in bracket_15_agents]))
-        avg_elec_income_16 = np.average(np.array([agent.energy_burden for agent in bracket_16_agents]))
-
-        self.agent_average_bracket_energy_burden = dict({
-            (1000,9999): avg_elec_income_1,
-            (10000,14999): avg_elec_income_2,
-            (15000, 19999): avg_elec_income_3,
-            (20000, 24999): avg_elec_income_4,
-            (25000, 29999): avg_elec_income_5,
-            (30000, 34999): avg_elec_income_6,
-            (35000, 39999): avg_elec_income_7,
-            (40000, 44999): avg_elec_income_8,
-            (45000,49999): avg_elec_income_9,
-            (50000,59999):avg_elec_income_10,
-            (60000,74999): avg_elec_income_11,
-            (75000,99999): avg_elec_income_12,
-            (100000,124999):avg_elec_income_13,
-            (125000,149999):avg_elec_income_14,
-            (150000,199999):avg_elec_income_15,
-            #arbitrary upper limit here - because we do need an upper limit
-            (200000,10000000):avg_elec_income_16
-        })
-        print('done with this')
+        print('getting energy burden buckets')
+        brackets = [
+            (1000, 9999), (10000, 14999), (15000, 19999), (20000, 24999),
+            (25000, 29999), (30000, 34999), (35000, 39999), (40000, 44999),
+            (45000, 49999), (50000, 59999), (60000, 74999), (75000, 99999),
+            (100000, 124999), (125000, 149999), (150000, 199999), (200000, 10000000)
+        ]
+        avg_elec_income = {}
+        for low, high in brackets:
+            bracket_agents = [a for a in self.schedule.agents if low <= a.income < high]
+            if bracket_agents:
+                avg_elec_income[(low, high)] = np.average([agent.energy_burden for agent in bracket_agents])
+            else:
+                avg_elec_income[(low, high)] = 0
+        self.agent_average_bracket_energy_burden = avg_elec_income
+        
     def get_agent_average_bracket_energy_ratio(self):
-        print('getting buckets')
-        bracket_1_agents = [a for a in self.schedule.agents if a.income <10000]
-        bracket_2_agents = [a for a in self.schedule.agents if (a.income >= 10000 and a.income< 15000)]
-        bracket_3_agents = [a for a in self.schedule.agents if (a.income >= 15000 and a.income< 20000)]
-        bracket_4_agents = [a for a in self.schedule.agents if (a.income >= 15000 and a.income< 20000)]
-        bracket_5_agents = [a for a in self.schedule.agents if (a.income >= 20000 and a.income< 25000)]
-        bracket_6_agents = [a for a in self.schedule.agents if (a.income >= 25000 and a.income< 30000)]
-        bracket_7_agents = [a for a in self.schedule.agents if (a.income >= 30000 and a.income< 35000)]
-        bracket_8_agents = [a for a in self.schedule.agents if (a.income >= 35000 and a.income< 40000)]
-        bracket_9_agents = [a for a in self.schedule.agents if (a.income >= 40000 and a.income< 45000)]
-        bracket_10_agents = [a for a in self.schedule.agents if (a.income >= 50000 and a.income< 60000)]
-        bracket_11_agents = [a for a in self.schedule.agents if (a.income >= 60000 and a.income< 75000)]
-        bracket_12_agents = [a for a in self.schedule.agents if (a.income >= 75000 and a.income< 100000)]
-        bracket_13_agents = [a for a in self.schedule.agents if (a.income >= 100000 and a.income< 125000)]
-        bracket_14_agents = [a for a in self.schedule.agents if (a.income >= 125000 and a.income< 150000)]
-        bracket_15_agents = [a for a in self.schedule.agents if (a.income >= 150000 and a.income< 200000)]
-        bracket_16_agents = [a for a in self.schedule.agents if (a.income >= 200000)]
-
-        avg_elec_income_1 = np.average(np.array([agent.energy_ratio for agent in bracket_1_agents]))
-        avg_elec_income_2 = np.average(np.array([agent.energy_ratio for agent in bracket_2_agents]))
-        avg_elec_income_3 = np.average(np.array([agent.energy_ratio for agent in bracket_3_agents]))
-        avg_elec_income_4 = np.average(np.array([agent.energy_ratio for agent in bracket_4_agents]))
-        avg_elec_income_5 = np.average(np.array([agent.energy_ratio for agent in bracket_5_agents]))
-        avg_elec_income_6 = np.average(np.array([agent.energy_ratio for agent in bracket_6_agents]))
-        avg_elec_income_7 = np.average(np.array([agent.energy_ratio for agent in bracket_7_agents]))
-        avg_elec_income_8 = np.average(np.array([agent.energy_ratio for agent in bracket_8_agents]))
-        avg_elec_income_9 = np.average(np.array([agent.energy_ratio for agent in bracket_9_agents]))
-        avg_elec_income_10 = np.average(np.array([agent.energy_ratio for agent in bracket_10_agents]))
-        avg_elec_income_11 = np.average(np.array([agent.energy_ratio for agent in bracket_11_agents]))
-        avg_elec_income_12 = np.average(np.array([agent.energy_ratio for agent in bracket_12_agents]))
-        avg_elec_income_13 = np.average(np.array([agent.energy_ratio for agent in bracket_13_agents]))
-        avg_elec_income_14 = np.average(np.array([agent.energy_ratio for agent in bracket_14_agents]))
-        avg_elec_income_15 = np.average(np.array([agent.energy_ratio for agent in bracket_15_agents]))
-        avg_elec_income_16 = np.average(np.array([agent.energy_ratio for agent in bracket_16_agents]))
-
-        self.agent_average_bracket_energy_ratio = dict({
-            (1000,9999): avg_elec_income_1,
-            (10000,14999): avg_elec_income_2,
-            (15000, 19999): avg_elec_income_3,
-            (20000, 24999): avg_elec_income_4,
-            (25000, 29999): avg_elec_income_5,
-            (30000, 34999): avg_elec_income_6,
-            (35000, 39999): avg_elec_income_7,
-            (40000, 44999): avg_elec_income_8,
-            (45000,49999): avg_elec_income_9,
-            (50000,59999):avg_elec_income_10,
-            (60000,74999): avg_elec_income_11,
-            (75000,99999): avg_elec_income_12,
-            (100000,124999):avg_elec_income_13,
-            (125000,149999):avg_elec_income_14,
-            (150000,199999):avg_elec_income_15,
-            #arbitrary upper limit here - because we do need an upper limit
-            (200000,10000000):avg_elec_income_16
-        })
-        print('done with this')
+        print('getting energy ratio buckets')
+        brackets = [
+            (1000, 9999), (10000, 14999), (15000, 19999), (20000, 24999),
+            (25000, 29999), (30000, 34999), (35000, 39999), (40000, 44999),
+            (45000, 49999), (50000, 59999), (60000, 74999), (75000, 99999),
+            (100000, 124999), (125000, 149999), (150000, 199999), (200000, 10000000)
+        ]
+        avg_elec_income = {}
+        for low, high in brackets:
+            bracket_agents = [a for a in self.schedule.agents if low <= a.income < high]
+            if bracket_agents:
+                avg_elec_income[(low, high)] = np.average([agent.energy_ratio for agent in bracket_agents])
+            else:
+                avg_elec_income[(low, high)] = 0
+        self.agent_average_bracket_energy_ratio = avg_elec_income
 
     def get_energy_burden_from_income(self, income):
         #print('energy burden time')
@@ -655,33 +592,30 @@ class SolarAdoptionModelState(Model):
         for agent in self.schedule.agents:
             agent_bracket = self.get_energy_burden_from_income(agent.income)
             agent_ratio = self.get_energy_ratio_from_income(agent.income)
-            agent.payback_period = av.get_agent_payback_period(agent, self.discount_rate, agent_bracket, agent_ratio)
+            agent.payback_period = av.get_agent_payback_period(agent, agent_bracket, agent_ratio)
 
 
 # IGNORE BELOW -checking that all of the column information has been included in the dataframe
 
 
 if __name__ == "__main__":
-    '''solar_by_zip_df = pd.read_csv('SunSight/Data/Incentives/solar_by_zip.csv')
-    for i in range(len(solar_by_zip_df)):
-        zipcode = solar_by_zip_df.iloc[i]['zip']
-        #zipcode = 12417
-        model = SolarAdoptionModelZipCode(zipcode)
-        model.generate_agents()
-        model.get_all_needed_option_values()
-        npv_list =model.get_all_npvs()
 
-        # Print summary of all agents
-        model.print_agent_summary()
-        
-        
-        # Get detailed descriptions of first 5 agents
-        agent_descriptions = model.describe_all_agents()
-        print(f"\n=== Detailed Descriptions of First 5 Agents ===")
-        for i, desc in enumerate(agent_descriptions[:15]):
-            print(f"\nAgent {i+1}:")
-            for key, value in desc.items():
-                print(f"  {key}: {value}")
-        
-        model.get_all_needed_option_values()'''
-    #model.step()'''
+    zips = pd.read_csv('../../Data/Clean_Data/zips.csv')['zip']
+    zips = [z for z in zips if z in census_df['zcta'].values]
+
+    start = time()
+    model = SolarAdoptionModelZipCode(2053)
+    model.set_installation_cost(15000)
+    model.set_payback_period(6.57)
+    model.set_solar_offset_per_home(solar_pv_sizing_kw=6.6)
+    model.generate_agents()
+    model.calculate_all_agent_paybacks()
+    model.calculate_all_agent_target_incentives(3)
+    end = time()
+    print(f"Time taken: {end - start:.2f} seconds")
+    print(np.mean(model.get_all_paybacks()))
+    print(np.mean(model.get_all_required_incentives()))
+
+
+
+

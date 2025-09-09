@@ -1,11 +1,11 @@
 from cgitb import reset
 import pandas as pd
 import math
-# from uszipcode import SearchEngine
-# from Data.Data_scraping.scrape_util import zip_to_region_division, state_abbr_to_state_full_func, state_abbr_to_region
+from uszipcode import SearchEngine
 import numpy as np
 from scipy.stats import truncnorm
 import ast
+from time import time
 '''
 This is the list of decision-making variables for our agents to make decisions on
 
@@ -14,15 +14,15 @@ This is the list of decision-making variables for our agents to make decisions o
 #relevant_dataframes 
 sunroof_df = pd.read_csv('../../Data/Sunroof/solar_by_zip.csv')
 sunroof_state_df = pd.read_csv('../../Data/Sunroof/solar_by_state.csv')
-# elec_cost_state_df = pd.read_csv('../../Data/Grid/elec_rate_states_2022.csv')
-# elec_cost_df = pd.read_csv('../../Data/Grid/elec_rate_zipcodes_2022.csv')
-# energy_expenditure_df = pd.read_csv('../../Data/EIA/eia_household_elec_consumption.csv')
+elec_cost_state_df = pd.read_csv('../../Data/Grid/elec_rate_states_2022.csv')
+elec_cost_df = pd.read_csv('../../Data/Grid/elec_rate_zipcodes_2022.csv')
+energy_expenditure_df = pd.read_csv('../../Data/EIA/eia_household_elec_consumption.csv')
 state_data_df = pd.read_csv('../../Data/Clean_Data/data_by_state_sum.csv')
 solar_by_state_df = pd.read_csv('../../Data/Sunroof/solar_by_state.csv')
 
 DISCOUNT_RATE = 0.05
 
-# search = SearchEngine()
+search = SearchEngine()
 '''def sample_from_normal_with_mean_rse(mean, rse, n_samples):
     n_samples = int(round(n_samples*1000000, 0))
     se = rse * mean
@@ -32,10 +32,106 @@ DISCOUNT_RATE = 0.05
     samples = truncnorm(a, b, loc=mean, scale=se).rvs(n_samples)
     return samples '''
 
+state_to_region_division = {
+    # Northeast
+    'CT': ('Northeast', 'New England'),
+    'ME': ('Northeast', 'New England'),
+    'MA': ('Northeast', 'New England'),
+    'NH': ('Northeast', 'New England'),
+    'RI': ('Northeast', 'New England'),
+    'VT': ('Northeast', 'New England'),
+    'NJ': ('Northeast', 'Middle Atlantic'),
+    'NY': ('Northeast', 'Middle Atlantic'),
+    'PA': ('Northeast', 'Middle Atlantic'),
+
+    # Midwest
+    'IN': ('Midwest', 'East North Central'),
+    'IL': ('Midwest', 'East North Central'),
+    'MI': ('Midwest', 'East North Central'),
+    'OH': ('Midwest', 'East North Central'),
+    'WI': ('Midwest', 'East North Central'),
+    'IA': ('Midwest', 'West North Central'),
+    'KS': ('Midwest', 'West North Central'),
+    'MN': ('Midwest', 'West North Central'),
+    'MO': ('Midwest', 'West North Central'),
+    'NE': ('Midwest', 'West North Central'),
+    'ND': ('Midwest', 'West North Central'),
+    'SD': ('Midwest', 'West North Central'),
+
+    # South
+    'DE': ('South', 'South Atlantic'),
+    'FL': ('South', 'South Atlantic'),
+    'GA': ('South', 'South Atlantic'),
+    'MD': ('South', 'South Atlantic'),
+    'NC': ('South', 'South Atlantic'),
+    'SC': ('South', 'South Atlantic'),
+    'VA': ('South', 'South Atlantic'),
+    'DC': ('South', 'South Atlantic'),
+    'WV': ('South', 'South Atlantic'),
+    'AL': ('South', 'East South Central'),
+    'KY': ('South', 'East South Central'),
+    'MS': ('South', 'East South Central'),
+    'TN': ('South', 'East South Central'),
+    'AR': ('South', 'West South Central'),
+    'LA': ('South', 'West South Central'),
+    'OK': ('South', 'West South Central'),
+    'TX': ('South', 'West South Central'),
+
+    # West
+    'AZ': ('West', 'Mountain'),
+    'CO': ('West', 'Mountain'),
+    'ID': ('West', 'Mountain'),
+    'MT': ('West', 'Mountain'),
+    'NV': ('West', 'Mountain'),
+    'NM': ('West', 'Mountain'),
+    'UT': ('West', 'Mountain'),
+    'WY': ('West', 'Mountain'),
+    'AK': ('West', 'Pacific'),
+    'CA': ('West', 'Pacific'),
+    'HI': ('West', 'Pacific'),
+    'OR': ('West', 'Pacific'),
+    'WA': ('West', 'Pacific')
+}
+#connecting the zipcode to region/division
+
+def state_abbr_to_state_full_func(state_abbr):
+    state_abbr_to_full = {
+        'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+        'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+        'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+        'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+        'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 
+        'MO': 'Missouri', 	'MT': 'Montana', 	'NE': 'Nebraska', 	'NV': 'Nevada',
+        'NH': 'New Hampshire', 	'NJ': 'New Jersey', 	'NM': 'New Mexico', 	'NY': 'New York',
+        'NC': 'North Carolina', 	'ND': 'North Dakota', 	'OH': 'Ohio', 	'OK': 'Oklahoma',
+        'OR': 'Oregon', 	'PA': 'Pennsylvania', 	'RI': 'Rhode Island',
+        'SC': 	'South Carolina', 	'SD': 	'South Dakota',
+        'TN': 	'Tennessee', 	'TX': 	'Texas',
+        'UT': 	'Utah', 	'VT': 	'Vermont',
+        'VA': 	'Virginia', 	'WA': 	'Washington',
+        # Including DC and territories for completeness
+        "DC": "District of Columbia", "AS": "American Samoa", "GU": "Guam",
+        "MP": "Northern Mariana Islands", "PR": "Puerto Rico", "VI": "U.S. Virgin Islands"
+    }
+    return state_abbr_to_full.get(state_abbr, None)
+
+def state_abbr_to_region(state_abbr):    
+    return state_to_region_division.get(state_abbr, (None, None))
+
+def zip_to_region_division(zipcode, search_engine):
+    zipcode_info = search_engine.by_zipcode(zipcode)
+    state_abbr = zipcode_info.state_abbr
+
+    if not state_abbr:
+        return None, None, None  
+
+    region, division = state_to_region_division.get(state_abbr, (None, None))
+    return state_abbr, region, division
+
 def sample_from_normal_with_mean_rse(mean, rse_percent, n_samples):
     sd = (rse_percent/100) * mean
     a, b = (0 - mean)/sd, np.inf
-    return truncnorm(a, b, loc=mean, scale=sd).rvs(int(n_samples*1000000))
+    return truncnorm(a, b, loc=mean, scale=sd).rvs(int(n_samples*1000))
 
 def get_real_discount_rate(electric_growth_rate, federal_funds_rate, inflation_rate):
     #assume an increase electric prices of 10% --> https://www.masslive.com/news/2022/10/power-planning-westfield-holyoke-other-municipal-utilities-prepare-for-long-expensive-and-uncertain-winter-ahead.html#:~:text=Holyoke%20Gas%20%26%20Electric%20is%20looking,James%20Lavelle%2C%20HG%26E's%20general%20manager.
@@ -43,9 +139,6 @@ def get_real_discount_rate(electric_growth_rate, federal_funds_rate, inflation_r
     #assume federal funds rate of 5%
     return (1+federal_funds_rate +inflation_rate)/(1 + electric_growth_rate) -1
 
-#not including installation cost
-#parameters that will vary are -
-# electricity consumption
 def npv_of_energy_savings(electric_cost, electric_consumption, energy_ratio, real_discount_rate, payback_period):
     npv=0
     for i in range(payback_period):
@@ -80,7 +173,7 @@ def get_payment_stats(installation_cost, income, energy_burden, proportion_offse
 
     return loan, yearly_savings
 
-def payback_period_of_energy_savings(installation_cost, income, energy_burden, proportion_offset, interest_rate=0.05):
+def payback_period_of_energy_savings(installation_cost, income, energy_burden, proportion_offset, interest_rate=0):
 
     '''
     inputs:
@@ -96,7 +189,7 @@ def payback_period_of_energy_savings(installation_cost, income, energy_burden, p
 
     loan, yearly_savings = get_payment_stats(installation_cost, income, energy_burden, proportion_offset)
 
-    if loan == 0:
+    if loan == 0 or interest_rate == 0:
         payback_period = installation_cost / yearly_savings
     
     else :
@@ -104,7 +197,7 @@ def payback_period_of_energy_savings(installation_cost, income, energy_burden, p
 
     return payback_period
 
-def incentive_for_target_payback(payback_target, installation_cost, energy_burden, income, proportion_offset, interest_rate=0.05):
+def incentive_for_target_payback(payback_target, installation_cost, energy_burden, income, proportion_offset, interest_rate=0):
     '''
     inputs:
     max_payback: maximum cash inflow per year from energy savings
@@ -121,9 +214,11 @@ def incentive_for_target_payback(payback_target, installation_cost, energy_burde
 
     loan, yearly_savings = get_payment_stats(installation_cost, income, energy_burden, proportion_offset)
 
-    max_loan = (1 - math.exp((1-payback_target)*math.log(1+interest_rate))) * yearly_savings/interest_rate
-
-    needed_incentive = (loan - max_loan)
+    if interest_rate == 0:
+        needed_incentive = installation_cost - (yearly_savings * payback_target)
+    else:
+        max_loan = (1 - math.exp((1-payback_target)*math.log(1+interest_rate))) * yearly_savings/interest_rate
+        needed_incentive = (loan - max_loan)
 
     return needed_incentive
 
@@ -148,16 +243,7 @@ def make_installation_right_sized_cost(agent, proportion_of_install_energy_consu
     state_install_costs = float(state_data_df[state_data_df['State code'] == zipcode]['Net Upfront Cost (assuming $17,500 system @ $2.5 per W, federal tax credit)'].values[0])
     state_install_costs_adjusted_for_size = (solar_right_sized/7000) * state_install_costs
     state_install_costs_2 = (solar_right_sized_2 /7000)* state_install_costs
-    #print(f'energy_consumpotion {energy_consumption}')
-    #print(f'solar sizing {solar_right_sized}')
-    #print(f'silar sizing 2 {solar_right_sized_2}')
-    #print(f'state install cost adjusted for size{state_install_costs_adjusted_for_size}')
-    #print(f'state install cost adjusted for size{state_install_costs_2}')
-    #print(state_install_costs_2 > state_install_costs_adjusted_for_size)
     return state_install_costs_adjusted_for_size
-
-def adjusted_installation_cost(installation_cost, rebate):
-    return installation_cost - rebate
 
 def get_agent_energy_ratio(agent):
     energy_consumption = agent.energy_expenditure
@@ -165,7 +251,7 @@ def get_agent_energy_ratio(agent):
     return offset/energy_consumption
 
 def get_agent_energy_burden(agent):
-    return (agent.energy_expenditure[0] *agent.elec_cost)/agent.income
+    return (agent.energy_expenditure *agent.elec_cost)/agent.income
 
 def get_agent_npv(agent, real_discount_rate, payback_period):
     #print('in the npv func')
@@ -184,41 +270,18 @@ def get_agent_npv(agent, real_discount_rate, payback_period):
     #print(f'npv_val {npv_val}')
     return npv_val
 
-def get_agent_payback_period(agent, real_discount_rate, average_energy_burden, average_energy_ratio):
-    energy_consumption = agent.energy_expenditure
-    electricity_dollar_per_kwh_start = agent.elec_cost
-    
+def get_agent_payback_period(agent, average_energy_burden, average_energy_ratio):
 
-    #offset = solar_potential_to_cost_offset(sunroof_df, zip) #* electricity_dollar_per_kwh_start
-    offset = agent.solar_offset_per_home
-    energy_burden = (energy_consumption*electricity_dollar_per_kwh_start)/agent.income
-    #installation_cost = make_installation_right_sized_cost(agent, 1)
     installation_cost = agent.installation_cost
-    #proportion_offset = agent.energy_ratio
-    proportion_offset = offset/energy_consumption
-    #print(f'agent income {agent.income}')
-    #print(f'energy proportion of income {energy_burden}')
-    #print(f'install proportion of income {installation_cost/agent.income}')
-    #print(f'average energy ratio {average_energy_ratio}')
-    max_savings_per_year = (energy_consumption*electricity_dollar_per_kwh_start)* average_energy_ratio #*proportion_offset
-    #print(f'install size {energy_consumption*electricity_dollar_per_kwh_start }')
-    payback_period = payback_period_of_energy_savings(max_savings_per_year, real_discount_rate, installation_cost, agent.income,average_energy_burden, average_energy_ratio)
-    #print(f'npv_val {npv_val}')
+    payback_period = payback_period_of_energy_savings(installation_cost, agent.income, average_energy_burden, average_energy_ratio)
+
     return payback_period
 
-def get_agent_target_incentive(agent, real_discount_rate, payback_target, average_energy_burden, average_energy_ratio):
-    energy_consumption = agent.energy_expenditure
-    electricity_dollar_per_kwh_start = agent.elec_cost
-    installation_cost = agent.installation_cost
-    #print(f'installation cost {installation_cost}')
-    #offset = solar_potential_to_cost_offset(sunroof_df, zip) #* electricity_dollar_per_kwh_start
-    offset = agent.solar_offset_per_home
-    #proportion_offset = agent.energy_ratio
-    proportion_offset = offset/energy_consumption
+def get_agent_target_incentive(agent, payback_target, average_energy_burden, average_energy_ratio):
 
-    max_savings_per_year = (energy_consumption*electricity_dollar_per_kwh_start)
-    needed_incentive = incentive_for_target_payback(max_savings_per_year, real_discount_rate, agent.payback_period, payback_target, installation_cost, average_energy_burden, agent.income, average_energy_ratio)
-    #print(f'npv_val {npv_val}')
+    installation_cost = agent.installation_cost
+    needed_incentive = incentive_for_target_payback(payback_target, installation_cost, average_energy_burden, agent.income, average_energy_ratio)
+
     return needed_incentive
 
 def get_elec_cost(zipcode, is_state=False):
@@ -231,11 +294,11 @@ def get_elec_cost(zipcode, is_state=False):
         state_name = state_abbr_to_state_full_func(state_abbr)
         elec_cost = elec_cost_state_df[elec_cost_state_df['State'] == state_name]
         elec_cost = elec_cost['Average Price (cents/kWh)'].values/100
-        print(f'state_res_rate is {elec_cost}')
+        # print(f'state_res_rate is {elec_cost}')
         return elec_cost
     else:
         elec_cost = elec_cost['res_rate'].values
-        print(f'zip_res_rate is {elec_cost}')
+        # print(f'zip_res_rate is {elec_cost}')
         if not isinstance(elec_cost, float):
             return elec_cost[0]
         return elec_cost
@@ -243,55 +306,22 @@ def get_elec_cost(zipcode, is_state=False):
      #   return 0.12  # Default electricity rate
 
 def build_energy_distributions(zipcode, is_state=False):
+
     if not is_state:
-        state_abbr, region, division = zip_to_region_division(zipcode, search)
+        _, region, _ = zip_to_region_division(zipcode, search)
         filtered_df = energy_expenditure_df[energy_expenditure_df['Region'] == region]
     else:
-        region, division = state_abbr_to_region(zipcode)
+        region, _ = state_abbr_to_region(zipcode)
         filtered_df = energy_expenditure_df[energy_expenditure_df['Region'] == region]
 
-    #build all distributions:
-    mean_1 = filtered_df['Less than $5,000_elec'].iloc[0]
-    rse_1 = filtered_df['Less than $5,000_RSE'].iloc[0]
-    n_samples_1 = filtered_df['Less than $5,000_count_millions'].iloc[0]
-    dist_1 = sample_from_normal_with_mean_rse(mean_1, rse_1, n_samples_1)
+    dists = []
+    for bracket in ['Less than $5,000', '$5,000 to $9,999', '$10,000 to $19,999', '$20,000 to $39,999', '$40,000 to $59,999', '$60,000 to $99,999', '$100,000 to $149,999', '$150,000 or more']:
+        mean = filtered_df[f'{bracket}_elec'].iloc[0]
+        rse = filtered_df[f'{bracket}_RSE'].iloc[0]
+        n_samples = filtered_df[f'{bracket}_count_millions'].iloc[0]
+        dists.append(sample_from_normal_with_mean_rse(mean, rse, n_samples))
 
-    mean_2 = filtered_df['$5,000 to $9,999_elec'].iloc[0]
-    rse_2 = filtered_df['$5,000 to $9,999_RSE'].iloc[0]
-    n_samples_2 = filtered_df['$5,000 to $9,999_count_millions'].iloc[0]
-    dist_2 = sample_from_normal_with_mean_rse(mean_2, rse_2, n_samples_2)
-    print(f'dist_2 {dist_2}')
-
-    mean_3 = filtered_df['$10,000 to $19,999_elec'].iloc[0]
-    rse_3 = filtered_df['$10,000 to $19,999_RSE'].iloc[0]
-    n_samples_3 = filtered_df['$10,000 to $19,999_count_millions'].iloc[0]
-    dist_3 = sample_from_normal_with_mean_rse(mean_3, rse_3, n_samples_3)
-
-    mean_4 = filtered_df['$20,000 to $39,999_elec'].iloc[0]
-    rse_4 = filtered_df['$20,000 to $39,999_RSE'].iloc[0]
-    n_samples_4 = filtered_df['$20,000 to $39,999_count_millions'].iloc[0]
-    dist_4 = sample_from_normal_with_mean_rse(mean_4, rse_4, n_samples_4)
-
-    mean_5 = filtered_df['$40,000 to $59,999_elec'].iloc[0]
-    rse_5 = filtered_df['$40,000 to $59,999_RSE'].iloc[0]
-    n_samples_5 = filtered_df['$40,000 to $59,999_count_millions'].iloc[0]
-    dist_5 = sample_from_normal_with_mean_rse(mean_5, rse_5, n_samples_5)
-
-    mean_6 = filtered_df['$60,000 to $99,999_elec'].iloc[0]
-    rse_6 = filtered_df['$60,000 to $99,999_RSE'].iloc[0]
-    n_samples_6 = filtered_df['$60,000 to $99,999_count_millions'].iloc[0]
-    dist_6 = sample_from_normal_with_mean_rse(mean_6, rse_6, n_samples_6)
-
-    mean_7 = filtered_df['$100,000 to $149,999_elec'].iloc[0]
-    rse_7 = filtered_df['$100,000 to $149,999_RSE'].iloc[0]
-    n_samples_7 = filtered_df['$100,000 to $149,999_count_millions'].iloc[0]
-    dist_7 = sample_from_normal_with_mean_rse(mean_7, rse_7, n_samples_7)
-
-    mean_8 = filtered_df['$150,000 or more_elec'].iloc[0]
-    rse_8 = filtered_df['$150,000 or more_RSE'].iloc[0]
-    n_samples_8 = filtered_df['$150,000 or more_count_millions'].iloc[0]
-    dist_8 = sample_from_normal_with_mean_rse(mean_8, rse_8, n_samples_8)
-    return [dist_1, dist_2, dist_3, dist_4, dist_5, dist_6, dist_7, dist_8]
+    return dists
 
 def get_energy_expenditure(dist_array, income, elec_cost):
     #print('getting energy expenditure')
@@ -369,35 +399,18 @@ def solar_potential_to_cost_offset(zip, solar_pv_sizing_kw, is_state=False):
     offset = sunroof_df[sunroof_df['region_name'] == zip]
     if offset.empty:
         if not is_state:
-            state_abbr, region, division = zip_to_region_division(zip, search)
+            state_abbr, _, _ = zip_to_region_division(zip, search)
             
         else:
             state_abbr = zip
         state_full_name = state_abbr_to_state_full_func(state_abbr)
         offset = sunroof_state_df[sunroof_state_df['region_name'] == state_full_name]['yearly_sunlight_kwh_kw_threshold_avg'].values[0]*solar_pv_sizing_kw
-        print(f'state offset is {offset}')
+        # print(f'state offset is {offset}')
         return offset
     else:
         offset = offset['yearly_sunlight_kwh_kw_threshold_avg'].values[0]* solar_pv_sizing_kw
-        print(f'zip offset is {offset}')
+        # print(f'zip offset is {offset}')
         return offset
-
-#the decision to get solar from an NPV perspective is modeled similarly to Crago et.al --> the NPV of savings must be 1.6X the investment cost 
-def get_acceptance(agent, real_discount_rate, option_value):
-    zip = agent.zipcode
-    income = agent.income
-    energy_consumption = agent.energy_expenditure
-    electricity_dollar_per_kwh_start = agent.elec_cost
-    installation_cost = agent.installation_cost 
-    offset = solar_potential_to_cost_offset(sunroof_df, zip) * electricity_dollar_per_kwh_start
-    proportion_offset = offset/energy_consumption
-    npv_val = npv(electricity_dollar_per_kwh_start, energy_consumption, proportion_offset, installation_cost, real_discount_rate)
-    if income < installation_cost:
-        return 0
-    elif npv_val > option_value * installation_cost:
-        return 1
-    else:
-        return 0
 
 def get_peer_influence(zip):
     try:
@@ -405,17 +418,6 @@ def get_peer_influence(zip):
         return frac_adopted
     except (KeyError, IndexError, ZeroDivisionError):
         return 0  # Default if not found or division by zero
-
-def get_needed_option_value(agent):
-    income = agent.income
-    energy_consumption = agent.energy_expenditure
-    electricity_dollar_per_kwh_start = agent.elec_cost
-    installation_cost = agent.installation_cost 
-    offset = solar_potential_to_cost_offset(sunroof_df, agent.zipcode) #* electricity_dollar_per_kwh_start
-    proportion_offset = offset/energy_consumption
-    npv_val = npv(electricity_dollar_per_kwh_start, energy_consumption, proportion_offset, installation_cost, DISCOUNT_RATE)
-    needed_option_value = npv_val/installation_cost
-    return needed_option_value, npv_val
     
 def get_response(agent, weights):
     RoI = get_acceptance(agent, DISCOUNT_RATE, agent.true_option_value)
@@ -428,16 +430,18 @@ def get_response(agent, weights):
 
 def get_energy_expenditure_vectorized(dist_array, incomes, elec_cost):
     
-    '''if not isinstance(elec_cost, float):
-        print(f'weird elec cost {elec_cost}')
-        if isinstance(elec_cost, list):
-            print('weird list')
-            elec_cost = elec_cost[0]
-        if isinstance(elec_cost, str):
-            print('weird string')
-            elec_cost = ast.literal_eval(elec_cost)
-            if isinstance(elec_cost, list):
-                elec_cost = elec_cost[0]'''
+    '''
+    Sample from income-based energy expenditure distributions.
+
+    Parameters:
+    dist_array: List of 8 arrays, each containing sampled energy expenditures for income brackets:
+                [<5000, 5000-9999, 10000-19999, 20000-39999, 40000-59999, 60000-99999, 100000-149999, 150000+]
+    incomes: Array-like of household incomes.
+    elec_cost: Electricity cost in $/kWh.
+
+    returns:
+    expenditures: Array of sampled energy expenditures corresponding to each income.
+    '''
 
     incomes = np.asarray(incomes, dtype=float)
     ratios = incomes / elec_cost  
@@ -449,6 +453,7 @@ def get_energy_expenditure_vectorized(dist_array, incomes, elec_cost):
 
     expenditures = np.empty_like(incomes)
 
+    # Iterate over each income bracket to sample expenditures
     for i in range(len(dist_array)):
         mask = idxs == i
         if not np.any(mask):
@@ -468,10 +473,9 @@ def get_energy_expenditure_vectorized(dist_array, incomes, elec_cost):
 
     return expenditures
 
-
 if __name__ == "__main__":
-    # print(payback_period_of_energy_savings(15100, 75000, 0.03, 0.5)) # No subsidy
-    # print(payback_period_of_energy_savings(10600, 75000, 0.03, 0.5)) # With subsidy
+    print(payback_period_of_energy_savings(15100, 75000, 0.03, 0.5)) # No subsidy
+    print(payback_period_of_energy_savings(10600, 75000, 0.03, 0.5)) # With subsidy
 
     print(incentive_for_target_payback(10, 15100, 0.03, 100000, 0.5)) # No subsidy
     print(incentive_for_target_payback(10, 10600, 0.03, 100000, 0.5)) # With subsidy
