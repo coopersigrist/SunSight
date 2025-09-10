@@ -262,7 +262,7 @@ def create_proportional_projection(zip_df, proportions, n_panels=1000, objective
     projections = init_objective_projs(zip_df, objectives)
 
     # Calculate the number of panels to add for each zip code based on the proportions
-    panel_placements = {zip_code: (1+proportion) * n_panels for zip_code, proportion in proportions.items()}
+    panel_placements = {zip_code: (proportion * zip_df[zip_df['region_name'] == zip_code]['count_qualified'].values[0]) for zip_code, proportion in proportions.items()}
 
     for objective in objectives:
         projections[objective.name][n_panels] = objective.calc(zip_df, panel_placements)
