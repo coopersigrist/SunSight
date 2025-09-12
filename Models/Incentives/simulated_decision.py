@@ -607,7 +607,7 @@ if __name__ == "__main__":
 
     INSTALLATION_COST = 17500
 
-    additional_incentives = [0, 500, 1000, 1500, 2000, 2500, 5000, 5250, 7500, 10000]
+    additional_incentives = [3000, 3500, 4000, 4500]
     output_df = pd.DataFrame()
 
     for index, state in state_data.iterrows():
