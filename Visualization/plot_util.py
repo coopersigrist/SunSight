@@ -343,7 +343,7 @@ def get_colorbrewer_palette(palette_name, bins):
     else:
         return [to_hex_color(c) for c in colors]
 
-def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix="", show=True):
+def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.5], legend_name=None, save_dir_prefix="", show=True, save_dir=None):
     '''
     Plots a map of the US states with color intensity dependent on the attribute given by key
     '''
@@ -358,7 +358,7 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
         legend_name = key
 
     fig = fl.Choropleth(geo_data=state_geo, data=stats_df,
-    columns=['State code', key],key_on='feature.id', fill_color=fill_color, line_weight=1, fill_opacity=0.7, line_opacity=.5)
+    columns=['State code', key],key_on='feature.id', fill_color=fill_color, line_weight=3, fill_opacity=0.7, line_opacity=.5)
     
     for k in fig._children:
         if k.startswith('color_map'):
@@ -366,10 +366,24 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
 
     fig.add_to(m)
 
-    min_value = round(np.min(stats_df[key]), -int(floor(log10(abs(np.min(stats_df[key]))))))
-    max_value = round(np.max(stats_df[key]),-int(floor(log10(abs(np.max(stats_df[key]))))))
-    palette = ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"]
-    palette = get_colorbrewer_palette(fill_color, bins=7)
+    if np.min(stats_df[key]) == 0: 
+        min_value = 0
+    else:
+        min_value = round(np.min(stats_df[key]), -int(floor(log10(abs(np.min(stats_df[key]))))))
+
+
+    max_value = round(np.max(stats_df[key]),1)
+    # max_value = round(np.max(stats_df[key]),-int(floor(log10(abs(np.max(stats_df[key]))))))
+
+    try:
+        colormap = getattr(linear, fill_color)
+    except AttributeError:
+        colormap = linear.YlGn_09  # fallback
+
+    colormap = colormap.scale(min_value, max_value)
+    palette = [colormap(i / 6) for i in range(7)]
+    # palette = ["#f7fcfd","#e0ecf4","#bfd3e6","#9ebcda","#8c96c6","#8856a7","#810f7c"]
+    # palette = get_colorbrewer_palette(fill_color, bins=7)
 
     template = f"""
         {{% macro html(this, kwargs) %}}
@@ -466,8 +480,12 @@ def plot_state_map(stats_df, key, fill_color="BuPu", zoom=4.8, location=[38,-96.
 
     img_data = m._to_png(5)
     img = Image.open(io.BytesIO(img_data))
-    if save_dir_prefix is not None:
-        img.save(save_dir_prefix + "Maps/" + key + '_by_state.png')
+
+    if save_dir is None:
+        if save_dir_prefix is not None:
+            img.save(save_dir_prefix + "Maps/" + key + '_by_state.png')
+    else:
+        img.save(save_dir)
 
     if show:
         img.show()

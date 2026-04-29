@@ -105,6 +105,22 @@ def updated_df_with_picks(zip_df:pd.DataFrame, placed_panels:dict):
 
     return new_df
 
+def updated_state_df_with_picks(state_df:pd.DataFrame, placed_panels:dict):
+    new_df = state_df.copy(deep=True)
+    new_existing = np.array(new_df['existing_installs_count'])
+
+    for state in placed_panels.keys():
+        index = list(new_df['State code']).index(state)
+        new_existing[index] += placed_panels[state]
+    
+
+    # # print('Number install change:', np.sum(new_existing - new_df['existing_installs_count']) )
+    new_df['existing_installs_count'] = new_existing
+    # new_df['existing_installs_count_per_capita'] = new_existing / new_df['Total_Population']
+    # new_df['panel_utilization'] = new_existing / new_df['number_of_panels_total']
+
+    return new_df
+
 #Calculates the equity of a given panel distribution, by default does racial equity over realized_potential
 def calc_equity(zip_df, placed_panels, type="racial", by='panel_utilization'):
 
